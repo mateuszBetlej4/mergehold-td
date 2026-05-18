@@ -42,9 +42,69 @@ Verification:
 
 ## Active Bugs
 
-_None — all tracked bugs **Verified** as of 2026-05-18 (including pre-audit BUG-001–005)._
+_None — playtest fixes 2026-05-18 (BUG-019, BUG-020). See **Fixed Bugs** below._
 
 **Handoff:** `docs/handoffs/2026-05-18-bug-fix.md` (see `LATEST.md`).
+
+_Audit / sweep BUG-001–020 are **Verified** in **Fixed Bugs** below._
+
+---
+
+ID: BUG-019
+Title: Wave-clear upgrade overlay clips gem drip and header text
+Status: Verified
+Severity: S3
+Area: Run UI / Phaser overlay
+Found in: Playtest 2026-05-18 (post bug-fix sweep)
+Owner: Unassigned
+Date opened: 2026-05-18
+Related issue: N/A
+
+Steps to reproduce:
+1. `npm run dev` → Play @ **390×844**.
+2. Clear any wave (e.g. wave 1 with no towers — enemies leak).
+3. Read the Phaser “Choose an upgrade” overlay.
+
+Expected:
+“Wave N cleared” and `+N gems banked` (and optional mill/shrine lines) are fully readable above the three upgrade cards.
+
+Actual:
+First upgrade card overlaps the yellow subheader lines. `+2 gems banked` (wave 1) is half hidden under the top card; “Wave N cleared” is partially obscured on later waves.
+
+Notes:
+`showUpgradeChoice()` sets `cardStartY = bonusY + upgradeCardHalfHeight + 24` after bonus lines so 82px-tall cards clear gem drip copy. Unrelated to runner facing.
+
+Verification:
+2026-05-18 — `npm run build` pass; overlay spacing fixed in `RunScene.ts` (DEC-027).
+
+---
+
+ID: BUG-020
+Title: Kenney runner (and grunt) sprite facing wrong on diagonal path leg
+Status: Verified
+Severity: S3
+Area: Graphics / gameplay polish
+Found in: Playtest 2026-05-18 after DEC-026 (`kenney-enemy-runner` offset `0`)
+Owner: Unassigned
+Date opened: 2026-05-18
+Related issue: BUG-018, DEC-026
+
+Steps to reproduce:
+1. Play @ **390×844**, **1.5×** speed.
+2. Start wave **2** (runner + grunt mix).
+3. Watch enemies on diagonal segment **(96,200) → (286,300)**.
+
+Expected:
+Sprite “nose” points along travel (down-right on that leg).
+
+Actual:
+Sprites appear to face **north** (texture default up) while sliding down-right — moonwalk / 90° off on diagonals. Vertical legs less obvious in quick pass.
+
+Notes:
+Agent playtest misidentified facing; user confirmed runner correct at offset `0` (DEC-026). DEC-027 reverted runner to `0`; kept waypoint snap + `rotationTurnSpeed` 0.045 + overlay gap (BUG-019).
+
+Verification:
+2026-05-18 — runner `kenney-enemy-runner` offset `0`; user report after erroneous `+π/2` revert; `npm run build` pass.
 
 ---
 

@@ -153,9 +153,16 @@ Record meaningful product and technical decisions here so future development has
 ## DEC-026: Kenney Runner Faces Right (Offset 0)
 
 - **Date:** 2026-05-18
-- **Status:** Accepted
+- **Status:** Superseded by DEC-027
 - **Decision:** Set `spriteFacingOffset` for `kenney-enemy-runner` to `0` (PNG art faces **right** at Phaser rotation 0, same as grunt). Do not apply DEC-021 `+π/2` to runner.
 - **Reasoning:** BUG-018 — user report and `b1d2bb4` baseline; runner was wrongly grouped with tank/shield in DEC-021. With `+π/2`, runner read ~90° off on vertical path legs @ 390×844. Bat (`enemy-runner` SVG) unchanged at `+π/2`.
+
+## DEC-027: Path Corner Rotation Snap + Upgrade Overlay Gap
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** On path waypoint advance, snap `enemy.body.rotation` to the next leg angle + `facingOffset`. Increase `rotationTurnSpeed` to `0.045`. Wave-clear overlay: `cardStartY = bonusY + upgradeCardHalfHeight + 24` so gem drip text is not clipped (BUG-019). **Runner offset stays `0`** (DEC-026) — do not apply `+π/2` to `kenney-enemy-runner`; user confirmed `+π/2` reads sideways.
+- **Reasoning:** BUG-020 agent playtest misread diagonal facing; user verified runner correct at offset `0`. Grunt also `0`. Tank/shield remain `+π/2` per DEC-021.
 
 ## DEC-022: Audio Settings In Progress Blob; Deploy Dev-Only
 

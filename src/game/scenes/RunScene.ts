@@ -179,7 +179,7 @@ const spriteFacingOffset: Record<string, number> = {
   "hero-guardian": Math.PI / 2,
 };
 
-const rotationTurnSpeed = 0.01;
+const rotationTurnSpeed = 0.045;
 
 export class RunScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
@@ -1291,6 +1291,16 @@ export class RunScene extends Phaser.Scene {
 
       if (Phaser.Math.Distance.Between(enemy.body.x, enemy.body.y, currentTarget.x, currentTarget.y) < 8) {
         enemy.pathIndex += 1;
+        const nextTarget = path[enemy.pathIndex];
+        if (nextTarget) {
+          const nextAngle = Phaser.Math.Angle.Between(
+            enemy.body.x,
+            enemy.body.y,
+            nextTarget.x,
+            nextTarget.y,
+          );
+          enemy.body.rotation = nextAngle + enemy.facingOffset;
+        }
         return true;
       }
 
@@ -1636,7 +1646,9 @@ export class RunScene extends Phaser.Scene {
       bonusY += 22;
     }
 
-    const cardStartY = bonusY > 206 ? bonusY + 18 : 247;
+    const upgradeCardHalfHeight = 41;
+    const cardStartY =
+      bonusY > 206 ? bonusY + upgradeCardHalfHeight + 24 : 247;
     offeredUpgrades.forEach((upgrade, index) => {
       const y = cardStartY + index * 106;
       overlay.add(this.createUpgradeCard(upgrade, 195, y));
