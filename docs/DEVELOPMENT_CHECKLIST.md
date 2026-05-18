@@ -54,7 +54,7 @@
 - [x] Archer tower.
 - [x] Cannon tower.
 - [x] Magic tower.
-- [ ] Spike trap.
+- [x] Spike trap.
 - [ ] Barracks.
 - [x] Grunt enemy.
 - [x] Runner enemy.

@@ -50,3 +50,10 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Store selected hero, selected map, best wave, gems, and permanent upgrades in browser local storage for now.
 - **Reasoning:** This keeps the MVP playable without backend friction while preserving a clear path to Supabase cloud saves later.
+
+## DEC-008: Spike Traps Use Dedicated Path Pads
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Place spike traps only on path-adjacent trap pads, separate from tower build slots, with a second picker row and proximity-triggered damage.
+- **Reasoning:** Keeps tower placement simple while making traps feel distinct and lane-focused without a full path-tile editor.

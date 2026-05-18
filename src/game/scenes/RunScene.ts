@@ -35,6 +35,17 @@ type Projectile = {
   speed: number;
 };
 
+type Trap = {
+  body: Phaser.GameObjects.Image;
+  badgeBg: Phaser.GameObjects.Arc;
+  badge: Phaser.GameObjects.Text;
+  tier: number;
+  damage: number;
+  cooldownMs: number;
+  triggerRadius: number;
+  lastTriggeredAt: number;
+};
+
 const path = [
   new Phaser.Math.Vector2(195, 38),
   new Phaser.Math.Vector2(195, 132),
@@ -44,6 +55,16 @@ const path = [
 ];
 
 const starterTowers = buildingDefinitions.filter((building) => building.role === "tower").slice(0, 3);
+const spikeTrapDefinition =
+  buildingDefinitions.find((building) => building.id === "spike-trap") ?? buildingDefinitions[3];
+
+const trapPadPositions: [number, number][] = [
+  [168, 98],
+  [72, 218],
+  [318, 328],
+  [248, 418],
+  [168, 468],
+];
 
 const towerAssetKeys: Record<string, string> = {
   "archer-tower": "kenney-tower-archer",
@@ -65,8 +86,12 @@ export class RunScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private projectiles: Projectile[] = [];
   private towerSlots: Phaser.GameObjects.Rectangle[] = [];
+  private trapSlots: Phaser.GameObjects.Rectangle[] = [];
   private towers: Tower[] = [];
+  private traps: Trap[] = [];
   private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
+  private trapPickerButton?: Phaser.GameObjects.Rectangle;
+  private selectedBuildMode: "tower" | "trap" = "tower";
   private fortHp = 180;
   private maxFortHp = 180;
   private coins = 150;
@@ -114,6 +139,7 @@ export class RunScene extends Phaser.Scene {
     this.load.image("kenney-enemy-boss", "/assets/optimized/sprites/kenney-enemy-boss.png");
     this.load.image("kenney-tree", "/assets/optimized/sprites/kenney-tree.png");
     this.load.image("kenney-projectile", "/assets/optimized/sprites/kenney-projectile.png");
+    this.load.svg("spike-trap", "/assets/optimized/sprites/spike-trap.svg", { width: 64, height: 64 });
   }
 
   create() {
@@ -121,6 +147,7 @@ export class RunScene extends Phaser.Scene {
     this.drawMap();
     this.drawHud();
     this.createBuildSlots();
+    this.createTrapSlots();
     this.createTowerPicker();
     this.createHero();
     this.showToast("Tap a build pad to place a tower");
@@ -140,6 +167,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.moveEnemies(delta);
+    this.triggerTraps(time);
     this.moveProjectiles(delta);
     this.towers.forEach((tower) => this.shootNearestEnemy(tower, time));
     this.updateHud();
@@ -234,6 +262,22 @@ export class RunScene extends Phaser.Scene {
     });
   }
 
+  private createTrapSlots() {
+    trapPadPositions.forEach(([x, y]) => {
+      const slot = this.add.rectangle(x, y, 46, 46, spikeTrapDefinition.color, 0.28)
+        .setStrokeStyle(2, spikeTrapDefinition.color, 0.9)
+        .setDepth(3);
+
+      this.trapSlots.push(slot);
+      this.add.text(x, y, "!", {
+        color: "#3d4a35",
+        fontFamily: "Arial",
+        fontSize: "22px",
+        fontStyle: "bold",
+      }).setOrigin(0.5).setDepth(4);
+    });
+  }
+
   private createTowerPicker() {
     starterTowers.forEach((tower, index) => {
       const x = 76 + index * 72;
@@ -254,6 +298,25 @@ export class RunScene extends Phaser.Scene {
         this.selectTower(index);
       });
     });
+
+    const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
+    this.trapPickerButton = this.add
+      .rectangle(118, 612, 68, 36, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
+      .setStrokeStyle(this.selectedBuildMode === "trap" ? 4 : 2, 0xffffff)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add.image(88, 612, "spike-trap").setScale(0.34).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
+    this.add
+      .text(118, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "12px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+
+    this.trapPickerButton.on("pointerdown", () => this.selectTrap());
 
     this.abilityButton = this.add.rectangle(319, 656, 80, 44, this.heroTint)
       .setStrokeStyle(3, 0xffffff)
@@ -288,6 +351,25 @@ export class RunScene extends Phaser.Scene {
 
     if (this.isGameOver) {
       this.scene.restart();
+      return;
+    }
+
+    const trapSlot = this.trapSlots.find((candidate) => {
+      return Phaser.Math.Distance.Between(x, y, candidate.x, candidate.y) < 28;
+    });
+
+    if (trapSlot) {
+      const existingTrap = this.traps.find((trap) => trap.body.x === trapSlot.x && trap.body.y === trapSlot.y);
+      if (!existingTrap && this.selectedBuildMode !== "trap") {
+        this.showToast("Select Spike Trap first");
+        return;
+      }
+      this.tryBuildOrMergeTrap(trapSlot);
+      return;
+    }
+
+    if (this.selectedBuildMode === "trap") {
+      this.showToast("Tap a trap pad on the path");
       return;
     }
 
@@ -345,6 +427,97 @@ export class RunScene extends Phaser.Scene {
       lastShotAt: 0,
     });
     this.showToast(`${definition.name} built`);
+  }
+
+  private tryBuildOrMergeTrap(slot: Phaser.GameObjects.Rectangle) {
+    if (this.wave < spikeTrapDefinition.unlockWave) {
+      this.showToast(`Unlocks at wave ${spikeTrapDefinition.unlockWave}`);
+      return;
+    }
+
+    const existingTrap = this.traps.find((trap) => trap.body.x === slot.x && trap.body.y === slot.y);
+
+    if (existingTrap) {
+      const maxTier = spikeTrapDefinition.maxTier;
+      if (this.coins >= 15 && existingTrap.tier < maxTier) {
+        this.coins -= 15;
+        existingTrap.tier += 1;
+        existingTrap.damage = spikeTrapDefinition.stats.damage * existingTrap.tier * this.towerDamageMultiplier;
+        existingTrap.cooldownMs = Math.max(
+          220,
+          Math.round(spikeTrapDefinition.stats.cooldownMs / (1 + (existingTrap.tier - 1) * 0.2)),
+        );
+        existingTrap.triggerRadius = 34 + existingTrap.tier * 3;
+        existingTrap.body.setScale(0.42 + existingTrap.tier * 0.05);
+        existingTrap.badgeBg.setPosition(existingTrap.body.x + 16, existingTrap.body.y - 14);
+        existingTrap.badge.setPosition(existingTrap.badgeBg.x, existingTrap.badgeBg.y);
+        existingTrap.badge.setText(String(existingTrap.tier));
+        this.showToast(`${existingTrap.tier === maxTier ? "Max" : "Tier"} ${existingTrap.tier} trap`);
+      } else if (existingTrap.tier >= maxTier) {
+        this.showToast("Trap is already max tier");
+      } else {
+        this.showToast("Need 15 coins to upgrade trap");
+      }
+      return;
+    }
+
+    if (this.coins < spikeTrapDefinition.baseCost) {
+      this.showToast(`Need ${spikeTrapDefinition.baseCost} coins`);
+      return;
+    }
+
+    this.coins -= spikeTrapDefinition.baseCost;
+    const body = this.add.image(slot.x, slot.y, "spike-trap").setScale(0.42).setDepth(7);
+    const badgeBg = this.add.circle(slot.x + 16, slot.y - 14, 9, 0x17202b).setDepth(8);
+    const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "11px",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(9);
+
+    this.traps.push({
+      body,
+      badgeBg,
+      badge,
+      tier: 1,
+      damage: spikeTrapDefinition.stats.damage * this.towerDamageMultiplier,
+      cooldownMs: spikeTrapDefinition.stats.cooldownMs,
+      triggerRadius: 34,
+      lastTriggeredAt: 0,
+    });
+    this.showToast(`${spikeTrapDefinition.name} armed`);
+  }
+
+  private triggerTraps(time: number) {
+    if (this.traps.length === 0 || this.enemies.length === 0) return;
+
+    this.traps.forEach((trap) => {
+      if (time - trap.lastTriggeredAt < trap.cooldownMs) return;
+
+      const target = this.enemies.find((enemy) => {
+        return (
+          Phaser.Math.Distance.Between(trap.body.x, trap.body.y, enemy.body.x, enemy.body.y) < trap.triggerRadius
+        );
+      });
+
+      if (!target) return;
+
+      trap.lastTriggeredAt = time;
+      this.damageEnemy(target, trap.damage);
+      this.pulseTrap(trap);
+    });
+  }
+
+  private pulseTrap(trap: Trap) {
+    this.tweens.add({
+      targets: trap.body,
+      scale: trap.body.scale * 1.18,
+      duration: 90,
+      yoyo: true,
+      ease: "Sine.easeOut",
+    });
+    this.flashCircle(trap.body.x, trap.body.y, trap.triggerRadius, spikeTrapDefinition.color);
   }
 
   private spawnWave() {
@@ -531,11 +704,27 @@ export class RunScene extends Phaser.Scene {
   private selectTower(index: number) {
     if (this.isChoosingUpgrade) return;
 
+    this.selectedBuildMode = "tower";
     this.selectedTowerIndex = index;
     this.towerPickerButtons.forEach((button, buttonIndex) => {
       button.setStrokeStyle(buttonIndex === index ? 4 : 2, 0xffffff);
     });
+    this.trapPickerButton?.setStrokeStyle(2, 0xffffff);
     this.showToast(`${starterTowers[index]?.name ?? "Tower"} selected`);
+  }
+
+  private selectTrap() {
+    if (this.isChoosingUpgrade) return;
+
+    if (this.wave < spikeTrapDefinition.unlockWave) {
+      this.showToast(`Spike Trap unlocks at wave ${spikeTrapDefinition.unlockWave}`);
+      return;
+    }
+
+    this.selectedBuildMode = "trap";
+    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
+    this.trapPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.showToast("Tap a trap pad on the path");
   }
 
   private showToast(message: string) {
@@ -698,8 +887,16 @@ export class RunScene extends Phaser.Scene {
     this.isChoosingUpgrade = false;
     this.wave += 1;
     this.coins += 30;
+    this.refreshTrapPickerLock();
     this.showToast(`${upgrade.name} gained`);
     this.spawnWave();
+  }
+
+  private refreshTrapPickerLock() {
+    if (!this.trapPickerButton) return;
+
+    const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
+    this.trapPickerButton.setFillStyle(trapUnlocked ? spikeTrapDefinition.color : 0x4b5563);
   }
 
   private applyUpgrade(upgrade: UpgradeDefinition) {
@@ -708,6 +905,9 @@ export class RunScene extends Phaser.Scene {
         this.towerDamageMultiplier += upgrade.value;
         this.towers.forEach((tower) => {
           tower.damage *= 1 + upgrade.value;
+        });
+        this.traps.forEach((trap) => {
+          trap.damage *= 1 + upgrade.value;
         });
         break;
       case "fire-rate":
@@ -728,6 +928,9 @@ export class RunScene extends Phaser.Scene {
         this.towerDamageMultiplier += upgrade.value * 0.5;
         this.towers.forEach((tower) => {
           tower.damage *= 1 + upgrade.value * 0.5;
+        });
+        this.traps.forEach((trap) => {
+          trap.damage *= 1 + upgrade.value * 0.5;
         });
         break;
       default:
