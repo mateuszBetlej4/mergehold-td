@@ -13,6 +13,7 @@ import {
   type RunDockTab,
   type RunUiStruct,
 } from "../gameBridge";
+import { AudioManager, preloadSounds } from "../audio/audioManager";
 
 type DamageSource = "archer" | "cannon" | "magic" | "trap" | "troop" | "hero" | "other";
 
@@ -229,6 +230,7 @@ export class RunScene extends Phaser.Scene {
   private nextHeroAbilityAt = 0;
   private heroTint = 0x4a5759;
   private upgradeOverlay?: Phaser.GameObjects.Container;
+  private audio?: AudioManager;
   private palette = {
     ground: 0x83a96d,
     path: 0xd9c59f,
@@ -262,6 +264,7 @@ export class RunScene extends Phaser.Scene {
     this.load.svg("coin-mill", "/assets/optimized/sprites/coin-mill.svg", { width: 64, height: 64 });
     this.load.svg("stone-wall", "/assets/optimized/sprites/stone-wall.svg", { width: 64, height: 64 });
     this.load.svg("healing-shrine", "/assets/optimized/sprites/healing-shrine.svg", { width: 64, height: 64 });
+    preloadSounds(this);
   }
 
   create() {
@@ -275,7 +278,14 @@ export class RunScene extends Phaser.Scene {
     this.createHero();
     this.publishRunUiState();
     this.showToast("Pick a tower, then tap a + pad");
+    this.audio = new AudioManager(this);
+    this.audio.startRunMusic();
     this.spawnWave();
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.audio?.destroy();
+      this.audio = undefined;
+    });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.tryBuildOrMerge(pointer.x, pointer.y);
@@ -618,6 +628,7 @@ export class RunScene extends Phaser.Scene {
 
       if (this.coins >= padTierUpgradeCost && existingTower.tier < 5) {
         this.coins -= padTierUpgradeCost;
+        this.audio?.play("build-upgrade");
         existingTower.tier += 1;
         existingTower.damage += 8 * this.towerDamageMultiplier;
         existingTower.range += 4;
@@ -646,6 +657,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.coins -= definition.baseCost;
+    this.audio?.play("build-place");
     const body = this.add.image(slot.x, slot.y, towerAssetKeys[definition.id]).setScale(0.58).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
@@ -681,6 +693,7 @@ export class RunScene extends Phaser.Scene {
       const maxTier = spikeTrapDefinition.maxTier;
       if (this.coins >= padTierUpgradeCost && existingTrap.tier < maxTier) {
         this.coins -= padTierUpgradeCost;
+        this.audio?.play("build-upgrade");
         existingTrap.tier += 1;
         existingTrap.damage = spikeTrapDefinition.stats.damage * existingTrap.tier * this.towerDamageMultiplier;
         existingTrap.cooldownMs = Math.max(
@@ -707,6 +720,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.coins -= spikeTrapDefinition.baseCost;
+    this.audio?.play("build-place");
     const body = this.add.image(slot.x, slot.y, "spike-trap").setScale(0.42).setDepth(7);
     const badgeBg = this.add.circle(slot.x + 16, slot.y - 14, 9, 0x17202b).setDepth(8);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
@@ -758,6 +772,7 @@ export class RunScene extends Phaser.Scene {
       const maxTier = coinMillDefinition.maxTier;
       if (this.coins >= padTierUpgradeCost && existingMill.tier < maxTier) {
         this.coins -= padTierUpgradeCost;
+        this.audio?.play("build-upgrade");
         existingMill.tier += 1;
         existingMill.body.setScale(0.48 + existingMill.tier * 0.05);
         existingMill.badgeBg.setPosition(existingMill.body.x + 19, existingMill.body.y - 18);
@@ -783,6 +798,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.coins -= coinMillDefinition.baseCost;
+    this.audio?.play("build-place");
     const body = this.add.image(slot.x, slot.y, "coin-mill").setScale(0.48).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
@@ -843,6 +859,7 @@ export class RunScene extends Phaser.Scene {
       const maxTier = barracksDefinition.maxTier;
       if (this.coins >= padTierUpgradeCost && existingBarracks.tier < maxTier) {
         this.coins -= padTierUpgradeCost;
+        this.audio?.play("build-upgrade");
         existingBarracks.tier += 1;
         existingBarracks.spawnRateMs = Math.max(
           1400,
@@ -872,6 +889,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.coins -= barracksDefinition.baseCost;
+    this.audio?.play("build-place");
     const body = this.add.image(slot.x, slot.y, "barracks").setScale(0.5).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
@@ -910,6 +928,7 @@ export class RunScene extends Phaser.Scene {
       const maxTier = stoneWallDefinition.maxTier;
       if (this.coins >= padTierUpgradeCost && existingWall.tier < maxTier) {
         this.coins -= padTierUpgradeCost;
+        this.audio?.play("build-upgrade");
         existingWall.tier += 1;
         existingWall.body.setScale(0.46 + existingWall.tier * 0.05);
         existingWall.badgeBg.setPosition(existingWall.body.x + 19, existingWall.body.y - 18);
@@ -936,6 +955,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.coins -= stoneWallDefinition.baseCost;
+    this.audio?.play("build-place");
     const body = this.add.image(slot.x, slot.y, "stone-wall").setScale(0.46).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
@@ -970,6 +990,7 @@ export class RunScene extends Phaser.Scene {
       const maxTier = healingShrineDefinition.maxTier;
       if (this.coins >= padTierUpgradeCost && existingShrine.tier < maxTier) {
         this.coins -= padTierUpgradeCost;
+        this.audio?.play("build-upgrade");
         existingShrine.tier += 1;
         existingShrine.body.setScale(0.46 + existingShrine.tier * 0.05);
         existingShrine.badgeBg.setPosition(existingShrine.body.x + 19, existingShrine.body.y - 18);
@@ -995,6 +1016,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.coins -= healingShrineDefinition.baseCost;
+    this.audio?.play("build-place");
     const body = this.add.image(slot.x, slot.y, "healing-shrine").setScale(0.46).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
@@ -1027,6 +1049,10 @@ export class RunScene extends Phaser.Scene {
       if (absorbed > 0) {
         this.flashCircle(195, 584, 42, stoneWallDefinition.color);
       }
+    }
+
+    if (damage > 0) {
+      this.audio?.play("fort-hit");
     }
 
     this.fortHp = Math.max(0, this.fortHp - damage);
@@ -1190,6 +1216,7 @@ export class RunScene extends Phaser.Scene {
 
       trap.lastTriggeredAt = time;
       this.damageEnemy(target, trap.damage, "trap");
+      this.audio?.play("trap-trigger");
       this.pulseTrap(trap);
     });
   }
@@ -1239,6 +1266,7 @@ export class RunScene extends Phaser.Scene {
     this.waitingToStartWave = false;
     this.wave += 1;
     this.refreshFortShield();
+    this.audio?.play("wave-start");
     this.spawnWave();
     this.showToast(`Wave ${this.wave} incoming`);
   }
@@ -1287,10 +1315,12 @@ export class RunScene extends Phaser.Scene {
         enemy.body.destroy();
         enemy.hpBar.destroy();
         if (enemy.archetype === "exploder") {
+          this.audio?.play("enemy-bomber-explode");
           this.applyFortDamage(enemy.damageToFort);
           this.applyFortDamage(Math.ceil(enemy.damageToFort * 0.55));
           this.flashCircle(195, 584, 72, 0xb5442f);
         } else {
+          this.audio?.play("enemy-leak");
           this.applyFortDamage(enemy.damageToFort);
         }
         return false;
@@ -1361,6 +1391,7 @@ export class RunScene extends Phaser.Scene {
     if (!target) return;
 
     tower.lastShotAt = time;
+    this.audio?.playTowerFire(tower.towerId);
     const projectileKey = projectileAssetKeys[tower.towerId] ?? "kenney-projectile";
     const projectileScale = projectileKey === "projectile-arrow" ? 0.62 : 0.55;
     const projectile = this.add.image(tower.body.x, tower.body.y, projectileKey).setScale(projectileScale).setDepth(18);
@@ -1454,6 +1485,7 @@ export class RunScene extends Phaser.Scene {
 
     if (this.fortHp <= 0 && !this.isGameOver) {
       this.isGameOver = true;
+      this.audio?.playDefeatSting();
       const fortBonusGems = this.claimEndOfRunRewards();
       const { lastRun } = useGameStore.getState();
       gameBridge.emit("runEnded", {
@@ -1617,6 +1649,7 @@ export class RunScene extends Phaser.Scene {
     });
 
     if (enemy.hp <= 0) {
+      this.audio?.play("enemy-kill", { rate: 0.92 + Math.random() * 0.16 });
       this.coins += enemy.reward;
       enemy.body.destroy();
       enemy.hpBar.destroy();
@@ -1649,6 +1682,7 @@ export class RunScene extends Phaser.Scene {
     const shrineHeal = this.collectShrineRepair();
     this.refreshFortShield();
     this.isChoosingUpgrade = true;
+    this.audio?.play("wave-clear");
     this.publishRunUiState();
     this.syncTimeScale();
     const offeredUpgrades = this.pickUpgrades();

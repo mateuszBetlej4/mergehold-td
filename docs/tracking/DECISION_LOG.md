@@ -10,6 +10,7 @@ Record meaningful product and technical decisions here so future development has
 |-----|--------|
 | [DEC-031](#dec-031-economy-rebalance--coin-ledger) | Meta gem cap, kill rewards, Merchant's Ledger, mill income |
 | [DEC-032](#dec-032-combat--economy-sink-pass-buildtier-costs--wave-pressure) | Build/tier costs, HP `+wave×6`, wave pressure, stipend 25+10 boss |
+| [DEC-033](#dec-033-gameplay-audio--sfx-mvp) | CC0 Kenney clips, Phaser SFX, HTML menu loop, DEC-022 toggles |
 
 **Supersedes (partial):** DEC-029 spawn HP scale `×5` → **DEC-032** `×6`; DEC-031 stipend `35+20` → **DEC-032** `25+10`; DEC-020 fort bonus `coins×0.08` → **DEC-031** capped `min(24, floor(coins×0.04))`.
 
@@ -298,3 +299,20 @@ Record meaningful product and technical decisions here so future development has
 - **Post-pass coin path (strategy B, 100% kills):** after W4 **~393** (was ~460); after W5 **~543** (was ~630) — still affords magic or mill + tier, not both plus extras without tradeoffs.
 - **Implemented:** `buildings.ts`, `enemies.ts`, `waves.ts`, `RunScene.ts`, `GAME_BALANCE.md`, `catalogStats.ts`, `App.tsx`; `npm run build`.
 - **Tracker:** BUG-023 (economy tuning) → Verified.
+
+## DEC-033: Gameplay Audio & SFX MVP
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Context:** Audio handoff — settings toggles persisted (DEC-022) but no clips or playback existed.
+- **Decision:**
+  - **CC0-first** sourcing from Kenney packs (Music Loops, Interface, Impact, Sci-Fi, RPG Audio).
+  - **Single run music loop** for MVP; boss layer deferred.
+  - **Gameplay SFX in Phaser** via `AudioManager` + `src/data/sounds.ts`; **menu loop in React** (`menuMusic.ts`) with HTML Audio.
+  - **Respect toggles:** `soundEnabled` silences one-shots; `musicEnabled` controls menu + run loops and defeat sting.
+  - **No toast-only deny sounds** (build-deny deferred).
+  - **OGG-only** runtime files for MVP (~1.1 MB); MP3 Safari fallback deferred until encode step in asset pipeline.
+  - **Throttle** tower fire keys (120–180 ms) to limit mud on mobile.
+- **P0 wired:** tower fire (3), enemy kill, leak, fort hit, trap, build place/upgrade, wave start/clear, bomber explode, defeat sting.
+- **Implemented:** `public/assets/optimized/audio/**`, `sounds.ts`, `audioManager.ts`, `menuMusic.ts`, `RunScene.ts`, `App.tsx`, `ASSET_CREDITS.md`; `npm run build`.
+- **Deferred (P1+):** React UI clicks, boss layer, shield-hit, hero abilities, MP3 fallbacks.

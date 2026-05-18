@@ -35,7 +35,8 @@ import {
   getUpgradeCatalogStats,
 } from "./catalogStats";
 import { PlayHud } from "./PlayHud";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { primeMenuMusic, stopMenuMusic, syncMenuMusic } from "../game/audio/menuMusic";
 import { gameBridge } from "../game/gameBridge";
 import {
   getUnlockWave,
@@ -62,9 +63,16 @@ type LeavePlayHandlers = {
 
 export function App() {
   const activeScreen = useGameStore((state) => state.activeScreen);
+  const musicEnabled = useGameStore((state) => state.musicEnabled);
   const setActiveScreen = useGameStore((state) => state.setActiveScreen);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [pendingLeaveScreen, setPendingLeaveScreen] = useState<AppScreen | null>(null);
+
+  useEffect(() => {
+    syncMenuMusic(activeScreen);
+  }, [activeScreen, musicEnabled]);
+
+  useEffect(() => () => stopMenuMusic(), []);
 
   const confirmLeaveRun = useCallback(() => {
     const { run, forfeitRun, runEndSummary, dismissRunEndSummary } = useGameStore.getState();
@@ -140,7 +148,10 @@ export function App() {
                 className={activeScreen === item.screen ? "active" : ""}
                 key={item.screen}
                 type="button"
-                onClick={() => navigateTo(item.screen)}
+                onClick={() => {
+                  primeMenuMusic();
+                  navigateTo(item.screen);
+                }}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -264,7 +275,13 @@ function HomeScreen({ navigateTo }: { navigateTo: (screen: AppScreen) => void })
         <Shield size={34} />
         <h2>Guard the pass</h2>
         <p>Build, merge, survive waves, and grow your fort between runs.</p>
-        <button type="button" onClick={() => navigateTo("play")}>
+        <button
+          type="button"
+          onClick={() => {
+            primeMenuMusic();
+            navigateTo("play");
+          }}
+        >
           Start run
         </button>
       </div>
