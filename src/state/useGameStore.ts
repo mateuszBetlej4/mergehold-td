@@ -56,6 +56,8 @@ export const permanentUpgradeDefinitions: PermanentUpgrade[] = [
 type PlayerProgress = {
   softCurrency: number;
   bestWave: number;
+  selectedHeroId: string;
+  selectedMapId: string;
   permanentUpgrades: Record<PermanentUpgradeId, number>;
 };
 
@@ -69,6 +71,8 @@ type GameStore = {
   setRunSnapshot: (snapshot: RunSnapshot) => void;
   claimRunRewards: (wave: number, coins: number) => number;
   buyPermanentUpgrade: (id: PermanentUpgradeId) => boolean;
+  selectHero: (id: string, unlockWave: number) => boolean;
+  selectMap: (id: string, unlockWave: number) => boolean;
   resetProgress: () => void;
   toggleSound: () => void;
   toggleMusic: () => void;
@@ -77,6 +81,8 @@ type GameStore = {
 const defaultProgress: PlayerProgress = {
   softCurrency: 0,
   bestWave: 1,
+  selectedHeroId: "stone-warden",
+  selectedMapId: "greenwatch",
   permanentUpgrades: {
     fortHp: 0,
     startingCoins: 0,
@@ -92,13 +98,14 @@ function loadProgress() {
   try {
     const raw = window.localStorage.getItem(saveKey);
     if (!raw) return defaultProgress;
+    const parsed = JSON.parse(raw);
 
     return {
       ...defaultProgress,
-      ...JSON.parse(raw),
+      ...parsed,
       permanentUpgrades: {
         ...defaultProgress.permanentUpgrades,
-        ...JSON.parse(raw).permanentUpgrades,
+        ...parsed.permanentUpgrades,
       },
     } satisfies PlayerProgress;
   } catch {
@@ -159,6 +166,36 @@ export const useGameStore = create<GameStore>((set) => ({
       return { progress: nextProgress };
     });
     return didBuy;
+  },
+  selectHero: (id, unlockWave) => {
+    let didSelect = false;
+    set((state) => {
+      if (state.progress.bestWave < unlockWave) return state;
+
+      didSelect = true;
+      const nextProgress = {
+        ...state.progress,
+        selectedHeroId: id,
+      };
+      saveProgress(nextProgress);
+      return { progress: nextProgress };
+    });
+    return didSelect;
+  },
+  selectMap: (id, unlockWave) => {
+    let didSelect = false;
+    set((state) => {
+      if (state.progress.bestWave < unlockWave) return state;
+
+      didSelect = true;
+      const nextProgress = {
+        ...state.progress,
+        selectedMapId: id,
+      };
+      saveProgress(nextProgress);
+      return { progress: nextProgress };
+    });
+    return didSelect;
   },
   resetProgress: () => set(() => {
     saveProgress(defaultProgress);

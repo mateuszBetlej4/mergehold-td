@@ -43,3 +43,10 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Use `Mergehold TD` as the product name and `mergehold-td` as the repository name.
 - **Reasoning:** The name directly communicates the merge-defense loop while staying distinct from Fort Guardian.
+
+## DEC-007: Keep Loadouts Local Until Account Saves Exist
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Store selected hero, selected map, best wave, gems, and permanent upgrades in browser local storage for now.
+- **Reasoning:** This keeps the MVP playable without backend friction while preserving a clear path to Supabase cloud saves later.

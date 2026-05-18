@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { buildingDefinitions } from "../../data/buildings";
 import { enemyDefinitions, type EnemyDefinition } from "../../data/enemies";
+import { heroDefinitions } from "../../data/heroes";
+import { mapDefinitions } from "../../data/maps";
 import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
 import { useGameStore } from "../../state/useGameStore";
 
@@ -76,6 +78,9 @@ export class RunScene extends Phaser.Scene {
   private fireRateMultiplier = 1;
   private rewardMultiplier = 1;
   private runRewardClaimed = false;
+  private selectedHeroName = "Stone Warden";
+  private selectedMapName = "Greenwatch Pass";
+  private heroTint = 0x4a5759;
   private hudText?: Phaser.GameObjects.Text;
   private waveText?: Phaser.GameObjects.Text;
   private toastText?: Phaser.GameObjects.Text;
@@ -106,7 +111,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   create() {
-    this.applyPermanentProgress();
+    this.applyLoadout();
     this.drawMap();
     this.drawHud();
     this.createBuildSlots();
@@ -136,10 +141,10 @@ export class RunScene extends Phaser.Scene {
 
   private drawMap() {
     this.add.rectangle(195, 347, 390, 694, this.palette.ground);
-    this.add.image(36, 104, "kenney-tree").setScale(0.72).setDepth(1);
-    this.add.image(345, 104, "kenney-tree").setScale(0.64).setDepth(1);
-    this.add.image(52, 526, "kenney-tree").setScale(0.6).setDepth(1);
-    this.add.image(345, 565, "kenney-tree").setScale(0.74).setDepth(1);
+    this.add.image(36, 104, "kenney-tree").setScale(0.72).setTint(this.palette.hud).setDepth(1);
+    this.add.image(345, 104, "kenney-tree").setScale(0.64).setTint(this.palette.hud).setDepth(1);
+    this.add.image(52, 526, "kenney-tree").setScale(0.6).setTint(this.palette.hud).setDepth(1);
+    this.add.image(345, 565, "kenney-tree").setScale(0.74).setTint(this.palette.hud).setDepth(1);
 
     const graphics = this.add.graphics();
     graphics.setDepth(2);
@@ -149,7 +154,7 @@ export class RunScene extends Phaser.Scene {
     path.slice(1).forEach((point) => graphics.lineTo(point.x, point.y));
     graphics.strokePath();
 
-    graphics.lineStyle(4, 0x8b6f47, 0.72);
+    graphics.lineStyle(4, this.palette.hud, 0.54);
     graphics.strokePath();
 
     this.add.image(195, 584, "fort").setScale(0.86).setDepth(12);
@@ -157,6 +162,14 @@ export class RunScene extends Phaser.Scene {
       color: "#fff7da",
       fontFamily: "Arial",
       fontSize: "14px",
+      fontStyle: "bold",
+      stroke: "#17202b",
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(20);
+    this.add.text(195, 681, this.selectedMapName, {
+      color: "#fff7da",
+      fontFamily: "Arial",
+      fontSize: "12px",
       fontStyle: "bold",
       stroke: "#17202b",
       strokeThickness: 3,
@@ -245,7 +258,15 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createHero() {
-    this.add.image(195, 530, "hero-guardian").setScale(0.48).setDepth(14);
+    this.add.image(195, 530, "hero-guardian").setScale(0.48).setTint(this.heroTint).setDepth(14);
+    this.add.text(195, 492, this.selectedHeroName, {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "12px",
+      fontStyle: "bold",
+      stroke: "#17202b",
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(20);
   }
 
   private tryBuildOrMerge(x: number, y: number) {
@@ -304,7 +325,7 @@ export class RunScene extends Phaser.Scene {
       badgeBg,
       badge,
       tier: 1,
-      damage: definition.stats.damage,
+      damage: definition.stats.damage * this.towerDamageMultiplier,
       range: definition.stats.range,
       fireRateMs: Math.round(definition.stats.fireRateMs * this.fireRateMultiplier),
       lastShotAt: 0,
@@ -628,12 +649,39 @@ export class RunScene extends Phaser.Scene {
     return shuffled.slice(0, 3);
   }
 
-  private applyPermanentProgress() {
-    const { permanentUpgrades } = useGameStore.getState().progress;
+  private applyLoadout() {
+    const { permanentUpgrades, selectedHeroId, selectedMapId } = useGameStore.getState().progress;
+    const selectedHero = heroDefinitions.find((hero) => hero.id === selectedHeroId) ?? heroDefinitions[0];
+    const selectedMap = mapDefinitions.find((map) => map.id === selectedMapId) ?? mapDefinitions[0];
+
+    this.selectedHeroName = selectedHero.name;
+    this.selectedMapName = selectedMap.name;
+    this.heroTint = selectedHero.color;
+    this.palette = {
+      ground: parseHexColor(selectedMap.palette.ground, 0x83a96d),
+      path: parseHexColor(selectedMap.palette.path, 0xd9c59f),
+      hud: parseHexColor(selectedMap.palette.accent, 0x17202b),
+    };
+
     this.maxFortHp = 180 + permanentUpgrades.fortHp * 18;
     this.fortHp = this.maxFortHp;
     this.coins = 150 + permanentUpgrades.startingCoins * 15;
     this.towerDamageMultiplier = 1 + permanentUpgrades.towerDamage * 0.08;
+
+    if (selectedHero.role === "guardian") {
+      this.maxFortHp += 35;
+      this.fortHp = this.maxFortHp;
+    }
+
+    if (selectedHero.role === "ranger") {
+      this.towerDamageMultiplier += 0.1;
+      this.fireRateMultiplier = 0.92;
+    }
+
+    if (selectedHero.role === "mage") {
+      this.rewardMultiplier += 0.2;
+      this.coins += 25;
+    }
   }
 
   private claimEndOfRunRewards() {
@@ -642,4 +690,9 @@ export class RunScene extends Phaser.Scene {
     this.runRewardClaimed = true;
     return useGameStore.getState().claimRunRewards(this.wave, this.coins);
   }
+}
+
+function parseHexColor(value: string, fallback: number) {
+  const parsed = Number.parseInt(value.replace("#", ""), 16);
+  return Number.isNaN(parsed) ? fallback : parsed;
 }

@@ -135,13 +135,13 @@ function renderScreen(screen: AppScreen, setActiveScreen: (screen: AppScreen) =>
     case "buildings":
       return <CardsScreen title="Buildings" icon={Castle} items={buildingDefinitions} />;
     case "heroes":
-      return <CardsScreen title="Heroes" icon={User} items={heroDefinitions} />;
+      return <HeroesScreen />;
     case "troops":
       return <CardsScreen title="Troops" icon={Trophy} items={troopDefinitions} />;
     case "enemies":
       return <CardsScreen title="Enemies" icon={Skull} items={enemyDefinitions} />;
     case "maps":
-      return <CardsScreen title="Maps" icon={Map} items={mapDefinitions} />;
+      return <MapsScreen />;
     case "settings":
       return <SettingsScreen />;
     case "deploy":
@@ -154,6 +154,8 @@ function renderScreen(screen: AppScreen, setActiveScreen: (screen: AppScreen) =>
 function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) => void }) {
   const run = useGameStore((state) => state.run);
   const progress = useGameStore((state) => state.progress);
+  const selectedHero = heroDefinitions.find((hero) => hero.id === progress.selectedHeroId) ?? heroDefinitions[0];
+  const selectedMap = mapDefinitions.find((map) => map.id === progress.selectedMapId) ?? mapDefinitions[0];
 
   return (
     <section className="home-screen">
@@ -170,6 +172,17 @@ function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) 
         <Metric label="Best" value={`Wave ${progress.bestWave}`} />
         <Metric label="Gems" value={String(progress.softCurrency)} />
         <Metric label="Run" value={`W${run.wave}`} />
+      </div>
+
+      <div className="loadout-strip">
+        <button type="button" onClick={() => setActiveScreen("heroes")}>
+          <span>Hero</span>
+          <strong>{selectedHero.name}</strong>
+        </button>
+        <button type="button" onClick={() => setActiveScreen("maps")}>
+          <span>Map</span>
+          <strong>{selectedMap.name}</strong>
+        </button>
       </div>
 
       <div className="screen-grid two">
@@ -222,6 +235,72 @@ function CardsScreen({ title, icon: Icon, items }: { title: string; icon: typeof
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function HeroesScreen() {
+  const progress = useGameStore((state) => state.progress);
+  const selectHero = useGameStore((state) => state.selectHero);
+
+  return (
+    <section className="content-screen">
+      <ScreenHeader icon={User} title="Heroes" />
+      <div className="card-list">
+        {heroDefinitions.map((hero) => {
+          const unlockWave = getUnlockWave(hero.unlock);
+          const isUnlocked = progress.bestWave >= unlockWave;
+          const isSelected = progress.selectedHeroId === hero.id;
+          return (
+            <article className={`content-card selectable-card ${isSelected ? "selected" : ""} ${isUnlocked ? "" : "locked"}`} key={hero.id}>
+              <div className="card-token" style={{ backgroundColor: `#${hero.color.toString(16).padStart(6, "0")}` }}>
+                {hero.name.slice(0, 1)}
+              </div>
+              <div>
+                <h3>{hero.name}</h3>
+                <p>{hero.ability}: {hero.description}</p>
+                <span>{isUnlocked ? hero.role : hero.unlock}</span>
+                <button className="select-button" type="button" disabled={!isUnlocked} onClick={() => selectHero(hero.id, unlockWave)}>
+                  {isSelected ? "Selected" : isUnlocked ? "Select" : "Locked"}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MapsScreen() {
+  const progress = useGameStore((state) => state.progress);
+  const selectMap = useGameStore((state) => state.selectMap);
+
+  return (
+    <section className="content-screen">
+      <ScreenHeader icon={Map} title="Maps" />
+      <div className="card-list">
+        {mapDefinitions.map((map) => {
+          const unlockWave = getUnlockWave(map.unlock);
+          const isUnlocked = progress.bestWave >= unlockWave;
+          const isSelected = progress.selectedMapId === map.id;
+          return (
+            <article className={`content-card selectable-card ${isSelected ? "selected" : ""} ${isUnlocked ? "" : "locked"}`} key={map.id}>
+              <div className="card-token map-token" style={{ backgroundColor: map.palette.ground }}>
+                <span style={{ backgroundColor: map.palette.path, borderColor: map.palette.accent }} />
+              </div>
+              <div>
+                <h3>{map.name}</h3>
+                <p>{map.description}</p>
+                <span>{isUnlocked ? map.theme : map.unlock}</span>
+                <button className="select-button" type="button" disabled={!isUnlocked} onClick={() => selectMap(map.id, unlockWave)}>
+                  {isSelected ? "Selected" : isUnlocked ? "Select" : "Locked"}
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -365,4 +444,9 @@ function DeployCard({ icon: Icon, title, text }: { icon: typeof Home; title: str
 
 function screenTitle(screen: AppScreen) {
   return screen.charAt(0).toUpperCase() + screen.slice(1);
+}
+
+function getUnlockWave(unlock: string) {
+  const match = unlock.match(/\d+/);
+  return match ? Number(match[0]) : 1;
 }

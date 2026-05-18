@@ -31,12 +31,12 @@
 
 ## Merge System
 
-- [ ] Building tiers.
-- [ ] Build costs.
-- [ ] Merge validation.
-- [ ] Merge visual feedback.
-- [ ] Tier stat scaling.
-- [ ] Max tier rules.
+- [x] Building tiers.
+- [x] Build costs.
+- [x] Merge validation.
+- [x] Merge visual feedback.
+- [x] Tier stat scaling.
+- [x] Max tier rules.
 
 ## Roguelike Upgrade System
 
@@ -50,42 +50,44 @@
 
 ## Content
 
-- [ ] Archer tower.
-- [ ] Cannon tower.
-- [ ] Magic tower.
+- [x] Archer tower.
+- [x] Cannon tower.
+- [x] Magic tower.
 - [ ] Spike trap.
 - [ ] Barracks.
-- [ ] Grunt enemy.
-- [ ] Runner enemy.
-- [ ] Tank enemy.
-- [ ] Shield enemy.
-- [ ] First boss.
+- [x] Grunt enemy.
+- [x] Runner enemy.
+- [x] Tank enemy.
+- [x] Shield enemy.
+- [x] First boss.
 
 ## Progression
 
 - [x] End-of-run rewards.
 - [x] Local save.
 - [x] Permanent upgrade menu.
-- [ ] Unlock conditions.
+- [x] Hero selection.
+- [x] Map selection.
+- [x] Unlock conditions.
 - [x] Reset save in settings.
 
 ## Assets
 
-- [ ] Download Kenney Tower Defense Kit.
+- [x] Download Kenney Tower Defense Kit.
 - [ ] Download Quaternius enemy pack.
 - [ ] Download UI pack.
 - [ ] Choose SFX source.
-- [ ] Add asset credits.
-- [ ] Optimize runtime assets.
-- [ ] Replace placeholders.
+- [x] Add asset credits.
+- [x] Optimize runtime assets.
+- [x] Replace core tower/enemy placeholders.
 
 ## Deployment
 
-- [ ] Build passes.
+- [x] Build passes.
 - [ ] Vercel project created.
 - [ ] Preview deployment works.
 - [ ] Production deployment works.
-- [ ] Mobile viewport checked.
+- [x] Mobile viewport checked.
 - [ ] Asset credits visible.
 
 ## Supabase Later
