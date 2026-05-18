@@ -56,6 +56,7 @@
 - [x] Magic tower.
 - [x] Spike trap.
 - [x] Barracks.
+- [x] Coin mill.
 - [x] Grunt enemy.
 - [x] Runner enemy.
 - [x] Tank enemy.

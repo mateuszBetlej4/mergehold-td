@@ -64,3 +64,10 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Place barracks on the same build pads as towers (one structure per pad) and spawn tier-based friendly troops that chase, attack, and block enemies.
 - **Reasoning:** Reuses the existing placement UX while adding lane pressure without a separate barracks grid.
+
+## DEC-010: Coin Mill Income On Wave Clear
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Pay coin mill income when a wave is cleared, before the upgrade picker opens, and show the payout on the wave-cleared overlay.
+- **Reasoning:** Matches the building description, gives immediate feedback, and reinforces economy planning between waves.

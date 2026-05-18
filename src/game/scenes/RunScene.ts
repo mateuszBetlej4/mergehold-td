@@ -56,6 +56,13 @@ type Barracks = {
   lastSpawnAt: number;
 };
 
+type CoinMill = {
+  body: Phaser.GameObjects.Image;
+  badgeBg: Phaser.GameObjects.Arc;
+  badge: Phaser.GameObjects.Text;
+  tier: number;
+};
+
 type FriendlyTroop = {
   body: Phaser.GameObjects.Image;
   hpBar: Phaser.GameObjects.Rectangle;
@@ -83,6 +90,8 @@ const spikeTrapDefinition =
   buildingDefinitions.find((building) => building.id === "spike-trap") ?? buildingDefinitions[3];
 const barracksDefinition =
   buildingDefinitions.find((building) => building.id === "barracks") ?? buildingDefinitions[4];
+const coinMillDefinition =
+  buildingDefinitions.find((building) => building.id === "coin-mill") ?? buildingDefinitions[5];
 
 const maxFriendlyTroops = 10;
 
@@ -118,11 +127,13 @@ export class RunScene extends Phaser.Scene {
   private towers: Tower[] = [];
   private traps: Trap[] = [];
   private barracks: Barracks[] = [];
+  private coinMills: CoinMill[] = [];
   private friendlyTroops: FriendlyTroop[] = [];
   private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
   private trapPickerButton?: Phaser.GameObjects.Rectangle;
   private barracksPickerButton?: Phaser.GameObjects.Rectangle;
-  private selectedBuildMode: "tower" | "trap" | "barracks" = "tower";
+  private coinMillPickerButton?: Phaser.GameObjects.Rectangle;
+  private selectedBuildMode: "tower" | "trap" | "barracks" | "mill" = "tower";
   private fortHp = 180;
   private maxFortHp = 180;
   private coins = 150;
@@ -172,6 +183,7 @@ export class RunScene extends Phaser.Scene {
     this.load.image("kenney-projectile", "/assets/optimized/sprites/kenney-projectile.png");
     this.load.svg("spike-trap", "/assets/optimized/sprites/spike-trap.svg", { width: 64, height: 64 });
     this.load.svg("barracks", "/assets/optimized/sprites/barracks.svg", { width: 64, height: 64 });
+    this.load.svg("coin-mill", "/assets/optimized/sprites/coin-mill.svg", { width: 64, height: 64 });
   }
 
   create() {
@@ -335,16 +347,16 @@ export class RunScene extends Phaser.Scene {
 
     const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
     this.trapPickerButton = this.add
-      .rectangle(76, 612, 64, 36, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
+      .rectangle(52, 612, 52, 34, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
       .setStrokeStyle(this.selectedBuildMode === "trap" ? 4 : 2, 0xffffff)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(50, 612, "spike-trap").setScale(0.32).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
+    this.add.image(30, 612, "spike-trap").setScale(0.3).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
     this.add
-      .text(76, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
+      .text(52, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
         color: "#ffffff",
         fontFamily: "Arial",
-        fontSize: "12px",
+        fontSize: "11px",
         fontStyle: "bold",
       })
       .setOrigin(0.5)
@@ -352,18 +364,37 @@ export class RunScene extends Phaser.Scene {
 
     this.trapPickerButton.on("pointerdown", () => this.selectTrap());
 
+    const millUnlocked = this.wave >= coinMillDefinition.unlockWave;
+    this.coinMillPickerButton = this.add
+      .rectangle(108, 612, 52, 34, millUnlocked ? coinMillDefinition.color : 0x4b5563)
+      .setStrokeStyle(this.selectedBuildMode === "mill" ? 4 : 2, 0xffffff)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add.image(86, 612, "coin-mill").setScale(0.3).setDepth(31).setAlpha(millUnlocked ? 1 : 0.45);
+    this.add
+      .text(108, 612, millUnlocked ? `${coinMillDefinition.icon} $${coinMillDefinition.baseCost}` : "W3", {
+        color: "#17202b",
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+
+    this.coinMillPickerButton.on("pointerdown", () => this.selectCoinMill());
+
     const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
     this.barracksPickerButton = this.add
-      .rectangle(160, 612, 64, 36, barracksUnlocked ? barracksDefinition.color : 0x4b5563)
+      .rectangle(164, 612, 52, 34, barracksUnlocked ? barracksDefinition.color : 0x4b5563)
       .setStrokeStyle(this.selectedBuildMode === "barracks" ? 4 : 2, 0xffffff)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(134, 612, "barracks").setScale(0.32).setDepth(31).setAlpha(barracksUnlocked ? 1 : 0.45);
+    this.add.image(142, 612, "barracks").setScale(0.3).setDepth(31).setAlpha(barracksUnlocked ? 1 : 0.45);
     this.add
-      .text(160, 612, barracksUnlocked ? `${barracksDefinition.icon} $${barracksDefinition.baseCost}` : "W4", {
+      .text(164, 612, barracksUnlocked ? `${barracksDefinition.icon} $${barracksDefinition.baseCost}` : "W4", {
         color: "#ffffff",
         fontFamily: "Arial",
-        fontSize: "12px",
+        fontSize: "11px",
         fontStyle: "bold",
       })
       .setOrigin(0.5)
@@ -432,6 +463,13 @@ export class RunScene extends Phaser.Scene {
 
     if (!slot) return;
 
+    const existingCoinMill = this.coinMills.find((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
+
+    if (existingCoinMill) {
+      this.tryBuildOrMergeCoinMill(slot);
+      return;
+    }
+
     const existingBarracks = this.barracks.find(
       (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
     );
@@ -441,8 +479,18 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    if (this.selectedBuildMode === "mill") {
+      this.tryBuildOrMergeCoinMill(slot);
+      return;
+    }
+
     if (this.selectedBuildMode === "barracks") {
       this.tryBuildOrMergeBarracks(slot);
+      return;
+    }
+
+    if (this.isPadOccupied(slot)) {
+      this.showToast("Build pad is occupied");
       return;
     }
 
@@ -556,6 +604,99 @@ export class RunScene extends Phaser.Scene {
     this.showToast(`${spikeTrapDefinition.name} armed`);
   }
 
+  private isPadOccupied(slot: Phaser.GameObjects.Rectangle) {
+    const hasTower = this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y);
+    const hasBarracks = this.barracks.some(
+      (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
+    );
+    const hasMill = this.coinMills.some((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
+    return hasTower || hasBarracks || hasMill;
+  }
+
+  private tryBuildOrMergeCoinMill(slot: Phaser.GameObjects.Rectangle) {
+    if (this.wave < coinMillDefinition.unlockWave) {
+      this.showToast(`Unlocks at wave ${coinMillDefinition.unlockWave}`);
+      return;
+    }
+
+    const existingMill = this.coinMills.find((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
+    const occupiedByOther = this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y)
+      || this.barracks.some((b) => b.body.x === slot.x && b.body.y === slot.y);
+
+    if (!existingMill && occupiedByOther) {
+      this.showToast("Build pad is occupied");
+      return;
+    }
+
+    if (existingMill) {
+      const maxTier = coinMillDefinition.maxTier;
+      if (this.coins >= 15 && existingMill.tier < maxTier) {
+        this.coins -= 15;
+        existingMill.tier += 1;
+        existingMill.body.setScale(0.48 + existingMill.tier * 0.05);
+        existingMill.badgeBg.setPosition(existingMill.body.x + 19, existingMill.body.y - 18);
+        existingMill.badge.setPosition(existingMill.badgeBg.x, existingMill.badgeBg.y);
+        existingMill.badge.setText(String(existingMill.tier));
+        this.showToast(`${existingMill.tier === maxTier ? "Max" : "Tier"} ${existingMill.tier} coin mill`);
+      } else if (existingMill.tier >= maxTier) {
+        this.showToast("Coin mill already max tier");
+      } else {
+        this.showToast("Need 15 coins to upgrade mill");
+      }
+      return;
+    }
+
+    if (this.selectedBuildMode !== "mill") {
+      this.showToast("Select Coin Mill first");
+      return;
+    }
+
+    if (this.coins < coinMillDefinition.baseCost) {
+      this.showToast(`Need ${coinMillDefinition.baseCost} coins`);
+      return;
+    }
+
+    this.coins -= coinMillDefinition.baseCost;
+    const body = this.add.image(slot.x, slot.y, "coin-mill").setScale(0.48).setDepth(8);
+    const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
+    const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "12px",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(10);
+
+    this.coinMills.push({ body, badgeBg, badge, tier: 1 });
+    this.showToast(`${coinMillDefinition.name} built`);
+  }
+
+  private collectCoinMillIncome() {
+    let total = 0;
+
+    this.coinMills.forEach((mill) => {
+      const income = coinMillDefinition.stats.income * mill.tier;
+      total += income;
+      this.pulseCoinMill(mill);
+    });
+
+    if (total > 0) {
+      this.coins += total;
+    }
+
+    return total;
+  }
+
+  private pulseCoinMill(mill: CoinMill) {
+    this.tweens.add({
+      targets: mill.body,
+      scale: mill.body.scale * 1.14,
+      duration: 120,
+      yoyo: true,
+      ease: "Sine.easeOut",
+    });
+    this.flashCircle(mill.body.x, mill.body.y, 36, coinMillDefinition.color);
+  }
+
   private tryBuildOrMergeBarracks(slot: Phaser.GameObjects.Rectangle) {
     if (this.wave < barracksDefinition.unlockWave) {
       this.showToast(`Unlocks at wave ${barracksDefinition.unlockWave}`);
@@ -565,10 +706,12 @@ export class RunScene extends Phaser.Scene {
     const existingBarracks = this.barracks.find(
       (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
     );
-    const occupiedByTower = this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y);
+    const occupiedByOther =
+      this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y)
+      || this.coinMills.some((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
 
-    if (!existingBarracks && occupiedByTower) {
-      this.showToast("Remove the tower first");
+    if (!existingBarracks && occupiedByOther) {
+      this.showToast("Build pad is occupied");
       return;
     }
 
@@ -974,6 +1117,21 @@ export class RunScene extends Phaser.Scene {
     this.showToast("Tap a trap pad on the path");
   }
 
+  private selectCoinMill() {
+    if (this.isChoosingUpgrade) return;
+
+    if (this.wave < coinMillDefinition.unlockWave) {
+      this.showToast(`Coin Mill unlocks at wave ${coinMillDefinition.unlockWave}`);
+      return;
+    }
+
+    this.selectedBuildMode = "mill";
+    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
+    this.clearSecondaryPickerSelection();
+    this.coinMillPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.showToast("Tap a build pad for coin mill");
+  }
+
   private selectBarracks() {
     if (this.isChoosingUpgrade) return;
 
@@ -991,6 +1149,7 @@ export class RunScene extends Phaser.Scene {
 
   private clearSecondaryPickerSelection() {
     this.trapPickerButton?.setStrokeStyle(2, 0xffffff);
+    this.coinMillPickerButton?.setStrokeStyle(2, 0xffffff);
     this.barracksPickerButton?.setStrokeStyle(2, 0xffffff);
   }
 
@@ -1088,6 +1247,7 @@ export class RunScene extends Phaser.Scene {
   private showUpgradeChoice() {
     if (this.isChoosingUpgrade || this.isGameOver) return;
 
+    const millIncome = this.collectCoinMillIncome();
     this.isChoosingUpgrade = true;
     const offeredUpgrades = this.pickUpgrades();
     const overlay = this.add.container(0, 0).setDepth(80);
@@ -1104,6 +1264,15 @@ export class RunScene extends Phaser.Scene {
       fontSize: "15px",
       fontStyle: "bold",
     }).setOrigin(0.5));
+
+    if (millIncome > 0) {
+      overlay.add(this.add.text(195, 206, `Coin mills +${millIncome}`, {
+        color: "#fff7da",
+        fontFamily: "Arial",
+        fontSize: "14px",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+    }
 
     offeredUpgrades.forEach((upgrade, index) => {
       const y = 247 + index * 106;
@@ -1163,6 +1332,11 @@ export class RunScene extends Phaser.Scene {
     if (this.trapPickerButton) {
       const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
       this.trapPickerButton.setFillStyle(trapUnlocked ? spikeTrapDefinition.color : 0x4b5563);
+    }
+
+    if (this.coinMillPickerButton) {
+      const millUnlocked = this.wave >= coinMillDefinition.unlockWave;
+      this.coinMillPickerButton.setFillStyle(millUnlocked ? coinMillDefinition.color : 0x4b5563);
     }
 
     if (this.barracksPickerButton) {
