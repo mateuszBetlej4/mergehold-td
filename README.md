@@ -26,6 +26,7 @@ The project is planned as a deployable browser game with a simple architecture, 
 - [Deployment Plan](docs/DEPLOYMENT_PLAN.md)
 - [Bug Tracker](docs/tracking/BUG_TRACKER.md)
 - [Decision Log](docs/tracking/DECISION_LOG.md)
+- [Agent handoffs](docs/handoffs/README.md) (dated session notes for continuing agents)
 
 ## Local Development
 

@@ -78,3 +78,10 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Add in-run Pause and 1x/1.5x speed buttons that drive `this.time.timeScale`, freezing wave timers and combat while paused.
 - **Reasoning:** Gives mobile players quick control without a separate settings screen and keeps wave pacing, spawns, and cooldowns in sync.
+
+## DEC-012: Dated Handoffs In docs/handoffs/
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Store agent session handoffs in `docs/handoffs/` as dated files (`YYYY-MM-DD.md`) with `LATEST.md` pointing to the newest. Create or replace a handoff only when the user explicitly asks—not after every task.
+- **Reasoning:** Keeps history, avoids stale auto-handoffs, and makes the next session’s entry point obvious.
