@@ -138,3 +138,6 @@ Every asset used in the game must be listed in:
 
 - `public/assets/licenses/ASSET_CREDITS.md`
 
+## Current Runtime State
+
+The current build uses imported Kenney Tower Defense PNG assets for towers, enemies, projectiles, and map props, plus project-created SVG sprites for the fantasy fort and hero.

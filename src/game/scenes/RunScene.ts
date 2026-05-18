@@ -4,8 +4,7 @@ import { enemyDefinitions, type EnemyDefinition } from "../../data/enemies";
 import { useGameStore } from "../../state/useGameStore";
 
 type Enemy = {
-  body: Phaser.GameObjects.Arc;
-  label: Phaser.GameObjects.Text;
+  body: Phaser.GameObjects.Image;
   hp: number;
   maxHp: number;
   speed: number;
@@ -14,8 +13,8 @@ type Enemy = {
 };
 
 type Tower = {
-  body: Phaser.GameObjects.Arc;
-  label: Phaser.GameObjects.Text;
+  body: Phaser.GameObjects.Image;
+  badge: Phaser.GameObjects.Text;
   tier: number;
   damage: number;
   range: number;
@@ -24,7 +23,7 @@ type Tower = {
 };
 
 type Projectile = {
-  body: Phaser.GameObjects.Arc;
+  body: Phaser.GameObjects.Image;
   target: Enemy;
   damage: number;
   speed: number;
@@ -39,6 +38,22 @@ const path = [
 ];
 
 const starterTowers = buildingDefinitions.filter((building) => building.role === "tower").slice(0, 3);
+
+const towerAssetKeys: Record<string, string> = {
+  "archer-tower": "kenney-tower-archer",
+  "cannon-tower": "kenney-tower-cannon",
+  "magic-tower": "kenney-tower-magic",
+};
+
+const enemyAssetKeys: Record<string, string> = {
+  grunt: "kenney-enemy-grunt",
+  runner: "kenney-enemy-runner",
+  tank: "kenney-enemy-tank",
+  shield: "kenney-enemy-shield",
+  bat: "kenney-enemy-runner",
+  bomber: "kenney-enemy-grunt",
+  gatebreaker: "kenney-enemy-boss",
+};
 
 export class RunScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
@@ -58,6 +73,21 @@ export class RunScene extends Phaser.Scene {
 
   constructor() {
     super("RunScene");
+  }
+
+  preload() {
+    this.load.svg("fort", "/assets/optimized/sprites/fort.svg", { width: 128, height: 128 });
+    this.load.svg("hero-guardian", "/assets/optimized/sprites/hero-guardian.svg", { width: 96, height: 96 });
+    this.load.image("kenney-tower-archer", "/assets/optimized/sprites/kenney-tower-archer.png");
+    this.load.image("kenney-tower-cannon", "/assets/optimized/sprites/kenney-tower-cannon.png");
+    this.load.image("kenney-tower-magic", "/assets/optimized/sprites/kenney-tower-magic.png");
+    this.load.image("kenney-enemy-grunt", "/assets/optimized/sprites/kenney-enemy-grunt.png");
+    this.load.image("kenney-enemy-runner", "/assets/optimized/sprites/kenney-enemy-runner.png");
+    this.load.image("kenney-enemy-tank", "/assets/optimized/sprites/kenney-enemy-tank.png");
+    this.load.image("kenney-enemy-shield", "/assets/optimized/sprites/kenney-enemy-shield.png");
+    this.load.image("kenney-enemy-boss", "/assets/optimized/sprites/kenney-enemy-boss.png");
+    this.load.image("kenney-tree", "/assets/optimized/sprites/kenney-tree.png");
+    this.load.image("kenney-projectile", "/assets/optimized/sprites/kenney-projectile.png");
   }
 
   create() {
@@ -82,8 +112,13 @@ export class RunScene extends Phaser.Scene {
 
   private drawMap() {
     this.add.rectangle(195, 347, 390, 694, this.palette.ground);
+    this.add.image(36, 104, "kenney-tree").setScale(0.72).setDepth(1);
+    this.add.image(345, 104, "kenney-tree").setScale(0.64).setDepth(1);
+    this.add.image(52, 526, "kenney-tree").setScale(0.6).setDepth(1);
+    this.add.image(345, 565, "kenney-tree").setScale(0.74).setDepth(1);
 
     const graphics = this.add.graphics();
+    graphics.setDepth(2);
     graphics.lineStyle(44, this.palette.path, 1);
     graphics.beginPath();
     graphics.moveTo(path[0].x, path[0].y);
@@ -93,15 +128,7 @@ export class RunScene extends Phaser.Scene {
     graphics.lineStyle(4, 0x8b6f47, 0.72);
     graphics.strokePath();
 
-    this.add.rectangle(195, 594, 132, 94, 0x6b4f32).setStrokeStyle(4, 0x34251a);
-    this.add.rectangle(195, 556, 92, 62, 0xb85c38).setStrokeStyle(3, 0x34251a);
-    this.add.triangle(195, 506, 122, 544, 268, 544, 195, 478, 0x365f7a);
-    this.add.text(195, 604, "FORT", {
-      color: "#fff7da",
-      fontFamily: "Arial",
-      fontSize: "18px",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
+    this.add.image(195, 584, "fort").setScale(0.86).setDepth(12);
   }
 
   private drawHud() {
@@ -125,8 +152,9 @@ export class RunScene extends Phaser.Scene {
     ];
 
     slots.forEach(([x, y]) => {
-      const slot = this.add.rectangle(x, y, 54, 54, 0xf7f2e8, 0.68)
+      const slot = this.add.rectangle(x, y, 58, 58, 0xf7f2e8, 0.72)
         .setStrokeStyle(3, 0x216869)
+        .setDepth(3)
         .setInteractive({ useHandCursor: true });
 
       this.towerSlots.push(slot);
@@ -135,7 +163,7 @@ export class RunScene extends Phaser.Scene {
         fontFamily: "Arial",
         fontSize: "30px",
         fontStyle: "bold",
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(4);
     });
   }
 
@@ -144,13 +172,15 @@ export class RunScene extends Phaser.Scene {
       const x = 76 + index * 72;
       const button = this.add.rectangle(x, 656, 58, 44, tower.color)
         .setStrokeStyle(index === this.selectedTowerIndex ? 4 : 2, 0xffffff)
+        .setDepth(30)
         .setInteractive({ useHandCursor: true });
+      this.add.image(x - 13, 656, towerAssetKeys[tower.id]).setScale(0.26).setDepth(31);
       this.add.text(x, 656, `${tower.icon} $${tower.baseCost}`, {
         color: "#ffffff",
         fontFamily: "Arial",
         fontSize: "13px",
         fontStyle: "bold",
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(32);
 
       button.on("pointerdown", () => {
         this.selectedTowerIndex = index;
@@ -167,13 +197,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createHero() {
-    this.add.circle(195, 540, 18, 0xf2c14e).setStrokeStyle(3, 0x17202b);
-    this.add.text(195, 540, "H", {
-      color: "#17202b",
-      fontFamily: "Arial",
-      fontSize: "16px",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
+    this.add.image(195, 530, "hero-guardian").setScale(0.48).setDepth(14);
   }
 
   private tryBuildOrMerge(x: number, y: number) {
@@ -191,8 +215,8 @@ export class RunScene extends Phaser.Scene {
         existingTower.tier += 1;
         existingTower.damage += 8;
         existingTower.range += 4;
-        existingTower.body.setScale(1 + existingTower.tier * 0.08);
-        existingTower.label.setText(String(existingTower.tier));
+        existingTower.body.setScale(0.58 + existingTower.tier * 0.05);
+        existingTower.badge.setText(String(existingTower.tier));
       }
       return;
     }
@@ -201,17 +225,18 @@ export class RunScene extends Phaser.Scene {
     if (this.coins < definition.baseCost) return;
 
     this.coins -= definition.baseCost;
-    const body = this.add.circle(slot.x, slot.y, 19, definition.color).setStrokeStyle(4, 0xf2c14e);
-    const label = this.add.text(slot.x, slot.y, "1", {
+    const body = this.add.image(slot.x, slot.y, towerAssetKeys[definition.id]).setScale(0.58).setDepth(8);
+    const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
+    const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
       color: "#ffffff",
       fontFamily: "Arial",
-      fontSize: "15px",
+      fontSize: "12px",
       fontStyle: "bold",
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(10);
 
     this.towers.push({
       body,
-      label,
+      badge,
       tier: 1,
       damage: definition.stats.damage,
       range: definition.stats.range,
@@ -258,19 +283,13 @@ export class RunScene extends Phaser.Scene {
   }
 
   private spawnEnemy(definition: EnemyDefinition) {
-    const radius = definition.archetype === "boss" ? 22 : 13;
-    const body = this.add.circle(path[0].x, path[0].y, radius, definition.color)
-      .setStrokeStyle(3, 0xf2c14e);
-    const label = this.add.text(path[0].x, path[0].y, definition.icon, {
-      color: "#ffffff",
-      fontFamily: "Arial",
-      fontSize: definition.archetype === "boss" ? "16px" : "12px",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
+    const assetKey = enemyAssetKeys[definition.id] ?? "kenney-enemy-grunt";
+    const body = this.add.image(path[0].x, path[0].y, assetKey)
+      .setScale(definition.archetype === "boss" ? 0.58 : 0.46)
+      .setDepth(16);
 
     this.enemies.push({
       body,
-      label,
       hp: definition.hp + this.wave * 6,
       maxHp: definition.hp + this.wave * 6,
       speed: (0.052 + this.wave * 0.002) * definition.speed,
@@ -287,7 +306,6 @@ export class RunScene extends Phaser.Scene {
 
       if (!currentTarget) {
         enemy.body.destroy();
-        enemy.label.destroy();
         this.fortHp = Math.max(0, this.fortHp - enemy.damageToFort);
         return false;
       }
@@ -295,8 +313,8 @@ export class RunScene extends Phaser.Scene {
       const angle = Phaser.Math.Angle.Between(enemy.body.x, enemy.body.y, currentTarget.x, currentTarget.y);
       enemy.body.x += Math.cos(angle) * enemy.speed * delta;
       enemy.body.y += Math.sin(angle) * enemy.speed * delta;
-      enemy.label.setPosition(enemy.body.x, enemy.body.y);
-      enemy.body.scale = 0.82 + (enemy.hp / enemy.maxHp) * 0.18;
+      enemy.body.rotation = angle + Math.PI / 2;
+      enemy.body.scale = (enemy.body.texture.key === "kenney-enemy-boss" ? 0.82 : 0.9) + (enemy.hp / enemy.maxHp) * 0.08;
       return enemy.hp > 0 && this.fortHp > 0;
     });
   }
@@ -316,7 +334,7 @@ export class RunScene extends Phaser.Scene {
 
     tower.lastShotAt = time;
     this.projectiles.push({
-      body: this.add.circle(tower.body.x, tower.body.y, 5, 0xf2c14e),
+      body: this.add.image(tower.body.x, tower.body.y, "kenney-projectile").setScale(0.55).setDepth(18),
       target,
       damage: tower.damage,
       speed: 0.42,
@@ -344,7 +362,6 @@ export class RunScene extends Phaser.Scene {
         if (projectile.target.hp <= 0) {
           this.coins += projectile.target.reward;
           projectile.target.body.destroy();
-          projectile.target.label.destroy();
         }
 
         return false;
@@ -356,6 +373,7 @@ export class RunScene extends Phaser.Scene {
         projectile.target.body.x,
         projectile.target.body.y,
       );
+      projectile.body.rotation = angle;
       projectile.body.x += Math.cos(angle) * projectile.speed * delta;
       projectile.body.y += Math.sin(angle) * projectile.speed * delta;
       return true;
@@ -389,4 +407,3 @@ export class RunScene extends Phaser.Scene {
     }
   }
 }
-
