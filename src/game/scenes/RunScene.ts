@@ -3,6 +3,7 @@ import { buildingDefinitions } from "../../data/buildings";
 import { enemyDefinitions, type EnemyDefinition } from "../../data/enemies";
 import { heroDefinitions } from "../../data/heroes";
 import { mapDefinitions } from "../../data/maps";
+import { troopDefinitions, type TroopDefinition } from "../../data/troops";
 import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
 import { useGameStore } from "../../state/useGameStore";
 
@@ -46,6 +47,29 @@ type Trap = {
   lastTriggeredAt: number;
 };
 
+type Barracks = {
+  body: Phaser.GameObjects.Image;
+  badgeBg: Phaser.GameObjects.Arc;
+  badge: Phaser.GameObjects.Text;
+  tier: number;
+  spawnRateMs: number;
+  lastSpawnAt: number;
+};
+
+type FriendlyTroop = {
+  body: Phaser.GameObjects.Image;
+  hpBar: Phaser.GameObjects.Rectangle;
+  hp: number;
+  maxHp: number;
+  damage: number;
+  speed: number;
+  attackRange: number;
+  attackCooldownMs: number;
+  lastAttackAt: number;
+  lastHurtAt: number;
+  role: TroopDefinition["role"];
+};
+
 const path = [
   new Phaser.Math.Vector2(195, 38),
   new Phaser.Math.Vector2(195, 132),
@@ -57,6 +81,10 @@ const path = [
 const starterTowers = buildingDefinitions.filter((building) => building.role === "tower").slice(0, 3);
 const spikeTrapDefinition =
   buildingDefinitions.find((building) => building.id === "spike-trap") ?? buildingDefinitions[3];
+const barracksDefinition =
+  buildingDefinitions.find((building) => building.id === "barracks") ?? buildingDefinitions[4];
+
+const maxFriendlyTroops = 10;
 
 const trapPadPositions: [number, number][] = [
   [168, 98],
@@ -89,9 +117,12 @@ export class RunScene extends Phaser.Scene {
   private trapSlots: Phaser.GameObjects.Rectangle[] = [];
   private towers: Tower[] = [];
   private traps: Trap[] = [];
+  private barracks: Barracks[] = [];
+  private friendlyTroops: FriendlyTroop[] = [];
   private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
   private trapPickerButton?: Phaser.GameObjects.Rectangle;
-  private selectedBuildMode: "tower" | "trap" = "tower";
+  private barracksPickerButton?: Phaser.GameObjects.Rectangle;
+  private selectedBuildMode: "tower" | "trap" | "barracks" = "tower";
   private fortHp = 180;
   private maxFortHp = 180;
   private coins = 150;
@@ -140,6 +171,7 @@ export class RunScene extends Phaser.Scene {
     this.load.image("kenney-tree", "/assets/optimized/sprites/kenney-tree.png");
     this.load.image("kenney-projectile", "/assets/optimized/sprites/kenney-projectile.png");
     this.load.svg("spike-trap", "/assets/optimized/sprites/spike-trap.svg", { width: 64, height: 64 });
+    this.load.svg("barracks", "/assets/optimized/sprites/barracks.svg", { width: 64, height: 64 });
   }
 
   create() {
@@ -168,6 +200,8 @@ export class RunScene extends Phaser.Scene {
 
     this.moveEnemies(delta);
     this.triggerTraps(time);
+    this.spawnBarracksTroops(time);
+    this.updateFriendlyTroops(time, delta);
     this.moveProjectiles(delta);
     this.towers.forEach((tower) => this.shootNearestEnemy(tower, time));
     this.updateHud();
@@ -301,13 +335,13 @@ export class RunScene extends Phaser.Scene {
 
     const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
     this.trapPickerButton = this.add
-      .rectangle(118, 612, 68, 36, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
+      .rectangle(76, 612, 64, 36, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
       .setStrokeStyle(this.selectedBuildMode === "trap" ? 4 : 2, 0xffffff)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(88, 612, "spike-trap").setScale(0.34).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
+    this.add.image(50, 612, "spike-trap").setScale(0.32).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
     this.add
-      .text(118, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
+      .text(76, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
         color: "#ffffff",
         fontFamily: "Arial",
         fontSize: "12px",
@@ -317,6 +351,25 @@ export class RunScene extends Phaser.Scene {
       .setDepth(32);
 
     this.trapPickerButton.on("pointerdown", () => this.selectTrap());
+
+    const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
+    this.barracksPickerButton = this.add
+      .rectangle(160, 612, 64, 36, barracksUnlocked ? barracksDefinition.color : 0x4b5563)
+      .setStrokeStyle(this.selectedBuildMode === "barracks" ? 4 : 2, 0xffffff)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add.image(134, 612, "barracks").setScale(0.32).setDepth(31).setAlpha(barracksUnlocked ? 1 : 0.45);
+    this.add
+      .text(160, 612, barracksUnlocked ? `${barracksDefinition.icon} $${barracksDefinition.baseCost}` : "W4", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "12px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+
+    this.barracksPickerButton.on("pointerdown", () => this.selectBarracks());
 
     this.abilityButton = this.add.rectangle(319, 656, 80, 44, this.heroTint)
       .setStrokeStyle(3, 0xffffff)
@@ -378,6 +431,20 @@ export class RunScene extends Phaser.Scene {
     });
 
     if (!slot) return;
+
+    const existingBarracks = this.barracks.find(
+      (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
+    );
+
+    if (existingBarracks) {
+      this.tryBuildOrMergeBarracks(slot);
+      return;
+    }
+
+    if (this.selectedBuildMode === "barracks") {
+      this.tryBuildOrMergeBarracks(slot);
+      return;
+    }
 
     const existingTower = this.towers.find((tower) => tower.body.x === slot.x && tower.body.y === slot.y);
 
@@ -487,6 +554,185 @@ export class RunScene extends Phaser.Scene {
       lastTriggeredAt: 0,
     });
     this.showToast(`${spikeTrapDefinition.name} armed`);
+  }
+
+  private tryBuildOrMergeBarracks(slot: Phaser.GameObjects.Rectangle) {
+    if (this.wave < barracksDefinition.unlockWave) {
+      this.showToast(`Unlocks at wave ${barracksDefinition.unlockWave}`);
+      return;
+    }
+
+    const existingBarracks = this.barracks.find(
+      (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
+    );
+    const occupiedByTower = this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y);
+
+    if (!existingBarracks && occupiedByTower) {
+      this.showToast("Remove the tower first");
+      return;
+    }
+
+    if (existingBarracks) {
+      const maxTier = barracksDefinition.maxTier;
+      if (this.coins >= 15 && existingBarracks.tier < maxTier) {
+        this.coins -= 15;
+        existingBarracks.tier += 1;
+        existingBarracks.spawnRateMs = Math.max(
+          1400,
+          Math.round(barracksDefinition.stats.spawnRateMs / (1 + (existingBarracks.tier - 1) * 0.22)),
+        );
+        existingBarracks.body.setScale(0.5 + existingBarracks.tier * 0.05);
+        existingBarracks.badgeBg.setPosition(existingBarracks.body.x + 19, existingBarracks.body.y - 18);
+        existingBarracks.badge.setPosition(existingBarracks.badgeBg.x, existingBarracks.badgeBg.y);
+        existingBarracks.badge.setText(String(existingBarracks.tier));
+        this.showToast(`${existingBarracks.tier === maxTier ? "Max" : "Tier"} ${existingBarracks.tier} barracks`);
+      } else if (existingBarracks.tier >= maxTier) {
+        this.showToast("Barracks already max tier");
+      } else {
+        this.showToast("Need 15 coins to upgrade barracks");
+      }
+      return;
+    }
+
+    if (this.selectedBuildMode !== "barracks") {
+      this.showToast("Select Barracks first");
+      return;
+    }
+
+    if (this.coins < barracksDefinition.baseCost) {
+      this.showToast(`Need ${barracksDefinition.baseCost} coins`);
+      return;
+    }
+
+    this.coins -= barracksDefinition.baseCost;
+    const body = this.add.image(slot.x, slot.y, "barracks").setScale(0.5).setDepth(8);
+    const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
+    const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "12px",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(10);
+
+    this.barracks.push({
+      body,
+      badgeBg,
+      badge,
+      tier: 1,
+      spawnRateMs: barracksDefinition.stats.spawnRateMs,
+      lastSpawnAt: 0,
+    });
+    this.showToast(`${barracksDefinition.name} ready`);
+  }
+
+  private getTroopDefinitionForTier(tier: number) {
+    return troopDefinitions[Math.min(troopDefinitions.length - 1, Math.max(0, tier - 1))];
+  }
+
+  private spawnBarracksTroops(time: number) {
+    if (this.barracks.length === 0 || this.friendlyTroops.length >= maxFriendlyTroops) return;
+
+    this.barracks.forEach((barracksBuilding) => {
+      if (time - barracksBuilding.lastSpawnAt < barracksBuilding.spawnRateMs) return;
+      if (this.friendlyTroops.length >= maxFriendlyTroops) return;
+
+      barracksBuilding.lastSpawnAt = time;
+      this.spawnFriendlyTroop(barracksBuilding);
+    });
+  }
+
+  private spawnFriendlyTroop(barracksBuilding: Barracks) {
+    const troopDefinition = this.getTroopDefinitionForTier(barracksBuilding.tier);
+    const spawnX = barracksBuilding.body.x + Phaser.Math.Between(-10, 10);
+    const spawnY = barracksBuilding.body.y + Phaser.Math.Between(-8, 8);
+    const body = this.add
+      .image(spawnX, spawnY, "hero-guardian")
+      .setScale(0.28)
+      .setTint(barracksDefinition.color)
+      .setDepth(13);
+    const hpBar = this.add
+      .rectangle(body.x, body.y - 18, 20, 3, 0x216869)
+      .setOrigin(0.5)
+      .setDepth(14);
+    const tierBonus = 1 + (barracksBuilding.tier - 1) * 0.18;
+    const attackRange = troopDefinition.role === "ranged" ? 92 : troopDefinition.role === "burst" ? 54 : 28;
+
+    this.friendlyTroops.push({
+      body,
+      hpBar,
+      hp: Math.round((barracksDefinition.stats.troopHp + troopDefinition.hp * 0.35) * tierBonus),
+      maxHp: Math.round((barracksDefinition.stats.troopHp + troopDefinition.hp * 0.35) * tierBonus),
+      damage: Math.round(troopDefinition.damage * tierBonus * this.towerDamageMultiplier),
+      speed: troopDefinition.role === "blocker" ? 0.05 : 0.062,
+      attackRange,
+      attackCooldownMs: troopDefinition.role === "burst" ? 920 : troopDefinition.role === "ranged" ? 720 : 580,
+      lastAttackAt: 0,
+      lastHurtAt: 0,
+      role: troopDefinition.role,
+    });
+  }
+
+  private updateFriendlyTroops(time: number, delta: number) {
+    this.friendlyTroops = this.friendlyTroops.filter((troop) => {
+      if (troop.hp <= 0) {
+        troop.body.destroy();
+        troop.hpBar.destroy();
+        return false;
+      }
+
+      const target = this.findTroopTarget(troop);
+      if (target) {
+        const distance = Phaser.Math.Distance.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
+        if (distance > troop.attackRange) {
+          const angle = Phaser.Math.Angle.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
+          troop.body.x += Math.cos(angle) * troop.speed * delta;
+          troop.body.y += Math.sin(angle) * troop.speed * delta;
+        } else if (time - troop.lastAttackAt >= troop.attackCooldownMs) {
+          troop.lastAttackAt = time;
+          if (troop.role === "burst") {
+            this.enemies
+              .filter(
+                (enemy) =>
+                  Phaser.Math.Distance.Between(troop.body.x, troop.body.y, enemy.body.x, enemy.body.y) < troop.attackRange,
+              )
+              .forEach((enemy) => this.damageEnemy(enemy, troop.damage));
+            this.flashCircle(troop.body.x, troop.body.y, troop.attackRange, 0xf2c14e);
+          } else {
+            this.damageEnemy(target, troop.damage);
+          }
+        }
+      }
+
+      this.enemies.forEach((enemy) => {
+        const contactDistance = Phaser.Math.Distance.Between(troop.body.x, troop.body.y, enemy.body.x, enemy.body.y);
+        if (contactDistance < 22 && time - troop.lastHurtAt > 700) {
+          troop.lastHurtAt = time;
+          troop.hp -= 10;
+          troop.body.setTintFill(0xff6b6b);
+          this.time.delayedCall(80, () => {
+            if (troop.body.active) troop.body.setTint(barracksDefinition.color);
+          });
+          if (troop.role === "blocker" && contactDistance < 18) {
+            enemy.body.x -= (enemy.body.x - troop.body.x) * 0.04;
+            enemy.body.y -= (enemy.body.y - troop.body.y) * 0.04;
+          }
+        }
+      });
+
+      troop.hpBar.setPosition(troop.body.x, troop.body.y - 18);
+      troop.hpBar.width = Math.max(3, 20 * (troop.hp / troop.maxHp));
+      return troop.hp > 0;
+    });
+  }
+
+  private findTroopTarget(troop: FriendlyTroop) {
+    return [...this.enemies]
+      .filter((enemy) => Phaser.Math.Distance.Between(troop.body.x, troop.body.y, enemy.body.x, enemy.body.y) < 220)
+      .sort((a, b) => {
+        const distanceA = Phaser.Math.Distance.Between(troop.body.x, troop.body.y, a.body.x, a.body.y);
+        const distanceB = Phaser.Math.Distance.Between(troop.body.x, troop.body.y, b.body.x, b.body.y);
+        return distanceA - distanceB;
+      })[0];
   }
 
   private triggerTraps(time: number) {
@@ -709,7 +955,7 @@ export class RunScene extends Phaser.Scene {
     this.towerPickerButtons.forEach((button, buttonIndex) => {
       button.setStrokeStyle(buttonIndex === index ? 4 : 2, 0xffffff);
     });
-    this.trapPickerButton?.setStrokeStyle(2, 0xffffff);
+    this.clearSecondaryPickerSelection();
     this.showToast(`${starterTowers[index]?.name ?? "Tower"} selected`);
   }
 
@@ -723,8 +969,29 @@ export class RunScene extends Phaser.Scene {
 
     this.selectedBuildMode = "trap";
     this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
+    this.clearSecondaryPickerSelection();
     this.trapPickerButton?.setStrokeStyle(4, 0xffffff);
     this.showToast("Tap a trap pad on the path");
+  }
+
+  private selectBarracks() {
+    if (this.isChoosingUpgrade) return;
+
+    if (this.wave < barracksDefinition.unlockWave) {
+      this.showToast(`Barracks unlock at wave ${barracksDefinition.unlockWave}`);
+      return;
+    }
+
+    this.selectedBuildMode = "barracks";
+    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
+    this.clearSecondaryPickerSelection();
+    this.barracksPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.showToast("Tap a build pad for barracks");
+  }
+
+  private clearSecondaryPickerSelection() {
+    this.trapPickerButton?.setStrokeStyle(2, 0xffffff);
+    this.barracksPickerButton?.setStrokeStyle(2, 0xffffff);
   }
 
   private showToast(message: string) {
@@ -887,16 +1154,21 @@ export class RunScene extends Phaser.Scene {
     this.isChoosingUpgrade = false;
     this.wave += 1;
     this.coins += 30;
-    this.refreshTrapPickerLock();
+    this.refreshSecondaryPickerLocks();
     this.showToast(`${upgrade.name} gained`);
     this.spawnWave();
   }
 
-  private refreshTrapPickerLock() {
-    if (!this.trapPickerButton) return;
+  private refreshSecondaryPickerLocks() {
+    if (this.trapPickerButton) {
+      const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
+      this.trapPickerButton.setFillStyle(trapUnlocked ? spikeTrapDefinition.color : 0x4b5563);
+    }
 
-    const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
-    this.trapPickerButton.setFillStyle(trapUnlocked ? spikeTrapDefinition.color : 0x4b5563);
+    if (this.barracksPickerButton) {
+      const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
+      this.barracksPickerButton.setFillStyle(barracksUnlocked ? barracksDefinition.color : 0x4b5563);
+    }
   }
 
   private applyUpgrade(upgrade: UpgradeDefinition) {

@@ -55,7 +55,7 @@
 - [x] Cannon tower.
 - [x] Magic tower.
 - [x] Spike trap.
-- [ ] Barracks.
+- [x] Barracks.
 - [x] Grunt enemy.
 - [x] Runner enemy.
 - [x] Tank enemy.

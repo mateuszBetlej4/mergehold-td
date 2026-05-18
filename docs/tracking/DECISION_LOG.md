@@ -57,3 +57,10 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Place spike traps only on path-adjacent trap pads, separate from tower build slots, with a second picker row and proximity-triggered damage.
 - **Reasoning:** Keeps tower placement simple while making traps feel distinct and lane-focused without a full path-tile editor.
+
+## DEC-009: Barracks Share Tower Build Pads
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Place barracks on the same build pads as towers (one structure per pad) and spawn tier-based friendly troops that chase, attack, and block enemies.
+- **Reasoning:** Reuses the existing placement UX while adding lane pressure without a separate barracks grid.
