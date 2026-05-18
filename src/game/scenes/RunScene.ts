@@ -63,6 +63,20 @@ type CoinMill = {
   tier: number;
 };
 
+type StoneWall = {
+  body: Phaser.GameObjects.Image;
+  badgeBg: Phaser.GameObjects.Arc;
+  badge: Phaser.GameObjects.Text;
+  tier: number;
+};
+
+type HealingShrine = {
+  body: Phaser.GameObjects.Image;
+  badgeBg: Phaser.GameObjects.Arc;
+  badge: Phaser.GameObjects.Text;
+  tier: number;
+};
+
 type FriendlyTroop = {
   body: Phaser.GameObjects.Image;
   hpBar: Phaser.GameObjects.Rectangle;
@@ -92,6 +106,10 @@ const barracksDefinition =
   buildingDefinitions.find((building) => building.id === "barracks") ?? buildingDefinitions[4];
 const coinMillDefinition =
   buildingDefinitions.find((building) => building.id === "coin-mill") ?? buildingDefinitions[5];
+const stoneWallDefinition =
+  buildingDefinitions.find((building) => building.id === "stone-wall") ?? buildingDefinitions[6];
+const healingShrineDefinition =
+  buildingDefinitions.find((building) => building.id === "healing-shrine") ?? buildingDefinitions[7];
 
 const maxFriendlyTroops = 10;
 
@@ -128,14 +146,22 @@ export class RunScene extends Phaser.Scene {
   private traps: Trap[] = [];
   private barracks: Barracks[] = [];
   private coinMills: CoinMill[] = [];
+  private stoneWalls: StoneWall[] = [];
+  private healingShrines: HealingShrine[] = [];
   private friendlyTroops: FriendlyTroop[] = [];
   private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
   private trapPickerButton?: Phaser.GameObjects.Rectangle;
   private barracksPickerButton?: Phaser.GameObjects.Rectangle;
   private coinMillPickerButton?: Phaser.GameObjects.Rectangle;
-  private selectedBuildMode: "tower" | "trap" | "barracks" | "mill" = "tower";
+  private wallPickerButton?: Phaser.GameObjects.Rectangle;
+  private shrinePickerButton?: Phaser.GameObjects.Rectangle;
+  private selectedBuildMode: "tower" | "trap" | "barracks" | "mill" | "wall" | "shrine" = "tower";
   private fortHp = 180;
   private maxFortHp = 180;
+  private fortShieldMax = 0;
+  private fortShieldRemaining = 0;
+  private waveReadyForClear = false;
+  private waitingToStartWave = false;
   private coins = 150;
   private wave = 1;
   private isGameOver = false;
@@ -163,6 +189,8 @@ export class RunScene extends Phaser.Scene {
   private pauseButtonText?: Phaser.GameObjects.Text;
   private speedButton?: Phaser.GameObjects.Rectangle;
   private speedButtonText?: Phaser.GameObjects.Text;
+  private startWaveButton?: Phaser.GameObjects.Rectangle;
+  private startWaveButtonText?: Phaser.GameObjects.Text;
   private upgradeOverlay?: Phaser.GameObjects.Container;
   private palette = {
     ground: 0x83a96d,
@@ -190,6 +218,8 @@ export class RunScene extends Phaser.Scene {
     this.load.svg("spike-trap", "/assets/optimized/sprites/spike-trap.svg", { width: 64, height: 64 });
     this.load.svg("barracks", "/assets/optimized/sprites/barracks.svg", { width: 64, height: 64 });
     this.load.svg("coin-mill", "/assets/optimized/sprites/coin-mill.svg", { width: 64, height: 64 });
+    this.load.svg("stone-wall", "/assets/optimized/sprites/stone-wall.svg", { width: 64, height: 64 });
+    this.load.svg("healing-shrine", "/assets/optimized/sprites/healing-shrine.svg", { width: 64, height: 64 });
   }
 
   create() {
@@ -218,6 +248,8 @@ export class RunScene extends Phaser.Scene {
       this.updateRunControls();
       return;
     }
+
+    this.tryCompleteWave();
 
     this.moveEnemies(delta);
     this.triggerTraps(time);
@@ -347,6 +379,36 @@ export class RunScene extends Phaser.Scene {
         this.toggleRunSpeed();
       },
     );
+
+    this.startWaveButton = this.add
+      .rectangle(195, 118, 132, 34, 0x216869, 0.95)
+      .setStrokeStyle(2, 0xffffff)
+      .setDepth(45)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this.startWaveButtonText = this.add
+      .text(195, 118, "Start Wave", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "13px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(46)
+      .setVisible(false);
+
+    this.startWaveButton.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+        this.beginNextWave();
+      },
+    );
   }
 
   private togglePause() {
@@ -458,13 +520,13 @@ export class RunScene extends Phaser.Scene {
 
     const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
     this.trapPickerButton = this.add
-      .rectangle(52, 612, 52, 34, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
+      .rectangle(40, 612, 46, 34, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
       .setStrokeStyle(this.selectedBuildMode === "trap" ? 4 : 2, 0xffffff)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(30, 612, "spike-trap").setScale(0.3).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
+    this.add.image(22, 612, "spike-trap").setScale(0.28).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
     this.add
-      .text(52, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
+      .text(40, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
         color: "#ffffff",
         fontFamily: "Arial",
         fontSize: "11px",
@@ -477,13 +539,13 @@ export class RunScene extends Phaser.Scene {
 
     const millUnlocked = this.wave >= coinMillDefinition.unlockWave;
     this.coinMillPickerButton = this.add
-      .rectangle(108, 612, 52, 34, millUnlocked ? coinMillDefinition.color : 0x4b5563)
+      .rectangle(88, 612, 46, 34, millUnlocked ? coinMillDefinition.color : 0x4b5563)
       .setStrokeStyle(this.selectedBuildMode === "mill" ? 4 : 2, 0xffffff)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(86, 612, "coin-mill").setScale(0.3).setDepth(31).setAlpha(millUnlocked ? 1 : 0.45);
+    this.add.image(70, 612, "coin-mill").setScale(0.28).setDepth(31).setAlpha(millUnlocked ? 1 : 0.45);
     this.add
-      .text(108, 612, millUnlocked ? `${coinMillDefinition.icon} $${coinMillDefinition.baseCost}` : "W3", {
+      .text(88, 612, millUnlocked ? `${coinMillDefinition.icon} $${coinMillDefinition.baseCost}` : "W3", {
         color: "#17202b",
         fontFamily: "Arial",
         fontSize: "11px",
@@ -496,13 +558,13 @@ export class RunScene extends Phaser.Scene {
 
     const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
     this.barracksPickerButton = this.add
-      .rectangle(164, 612, 52, 34, barracksUnlocked ? barracksDefinition.color : 0x4b5563)
+      .rectangle(136, 612, 46, 34, barracksUnlocked ? barracksDefinition.color : 0x4b5563)
       .setStrokeStyle(this.selectedBuildMode === "barracks" ? 4 : 2, 0xffffff)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(142, 612, "barracks").setScale(0.3).setDepth(31).setAlpha(barracksUnlocked ? 1 : 0.45);
+    this.add.image(118, 612, "barracks").setScale(0.28).setDepth(31).setAlpha(barracksUnlocked ? 1 : 0.45);
     this.add
-      .text(164, 612, barracksUnlocked ? `${barracksDefinition.icon} $${barracksDefinition.baseCost}` : "W4", {
+      .text(136, 612, barracksUnlocked ? `${barracksDefinition.icon} $${barracksDefinition.baseCost}` : "W4", {
         color: "#ffffff",
         fontFamily: "Arial",
         fontSize: "11px",
@@ -512,6 +574,42 @@ export class RunScene extends Phaser.Scene {
       .setDepth(32);
 
     this.barracksPickerButton.on("pointerdown", () => this.selectBarracks());
+
+    const wallUnlocked = this.wave >= stoneWallDefinition.unlockWave;
+    this.wallPickerButton = this.add
+      .rectangle(184, 612, 46, 34, wallUnlocked ? stoneWallDefinition.color : 0x4b5563)
+      .setStrokeStyle(this.selectedBuildMode === "wall" ? 4 : 2, 0xffffff)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add.image(166, 612, "stone-wall").setScale(0.28).setDepth(31).setAlpha(wallUnlocked ? 1 : 0.45);
+    this.add
+      .text(184, 612, wallUnlocked ? `${stoneWallDefinition.icon} $${stoneWallDefinition.baseCost}` : "W2", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+    this.wallPickerButton.on("pointerdown", () => this.selectStoneWall());
+
+    const shrineUnlocked = this.wave >= healingShrineDefinition.unlockWave;
+    this.shrinePickerButton = this.add
+      .rectangle(232, 612, 46, 34, shrineUnlocked ? healingShrineDefinition.color : 0x4b5563)
+      .setStrokeStyle(this.selectedBuildMode === "shrine" ? 4 : 2, 0xffffff)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add.image(214, 612, "healing-shrine").setScale(0.28).setDepth(31).setAlpha(shrineUnlocked ? 1 : 0.45);
+    this.add
+      .text(232, 612, shrineUnlocked ? `${healingShrineDefinition.icon} $${healingShrineDefinition.baseCost}` : "W5", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+    this.shrinePickerButton.on("pointerdown", () => this.selectHealingShrine());
 
     this.abilityButton = this.add.rectangle(319, 656, 80, 44, this.heroTint)
       .setStrokeStyle(3, 0xffffff)
@@ -590,6 +688,22 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    const existingWall = this.stoneWalls.find((wall) => wall.body.x === slot.x && wall.body.y === slot.y);
+
+    if (existingWall) {
+      this.tryBuildOrMergeStoneWall(slot);
+      return;
+    }
+
+    const existingShrine = this.healingShrines.find(
+      (shrine) => shrine.body.x === slot.x && shrine.body.y === slot.y,
+    );
+
+    if (existingShrine) {
+      this.tryBuildOrMergeHealingShrine(slot);
+      return;
+    }
+
     if (this.selectedBuildMode === "mill") {
       this.tryBuildOrMergeCoinMill(slot);
       return;
@@ -597,6 +711,16 @@ export class RunScene extends Phaser.Scene {
 
     if (this.selectedBuildMode === "barracks") {
       this.tryBuildOrMergeBarracks(slot);
+      return;
+    }
+
+    if (this.selectedBuildMode === "wall") {
+      this.tryBuildOrMergeStoneWall(slot);
+      return;
+    }
+
+    if (this.selectedBuildMode === "shrine") {
+      this.tryBuildOrMergeHealingShrine(slot);
       return;
     }
 
@@ -721,7 +845,9 @@ export class RunScene extends Phaser.Scene {
       (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
     );
     const hasMill = this.coinMills.some((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
-    return hasTower || hasBarracks || hasMill;
+    const hasWall = this.stoneWalls.some((wall) => wall.body.x === slot.x && wall.body.y === slot.y);
+    const hasShrine = this.healingShrines.some((shrine) => shrine.body.x === slot.x && shrine.body.y === slot.y);
+    return hasTower || hasBarracks || hasMill || hasWall || hasShrine;
   }
 
   private tryBuildOrMergeCoinMill(slot: Phaser.GameObjects.Rectangle) {
@@ -731,8 +857,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     const existingMill = this.coinMills.find((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
-    const occupiedByOther = this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y)
-      || this.barracks.some((b) => b.body.x === slot.x && b.body.y === slot.y);
+    const occupiedByOther = this.isPadOccupied(slot) && !existingMill;
 
     if (!existingMill && occupiedByOther) {
       this.showToast("Build pad is occupied");
@@ -817,9 +942,7 @@ export class RunScene extends Phaser.Scene {
     const existingBarracks = this.barracks.find(
       (barracksBuilding) => barracksBuilding.body.x === slot.x && barracksBuilding.body.y === slot.y,
     );
-    const occupiedByOther =
-      this.towers.some((tower) => tower.body.x === slot.x && tower.body.y === slot.y)
-      || this.coinMills.some((mill) => mill.body.x === slot.x && mill.body.y === slot.y);
+    const occupiedByOther = this.isPadOccupied(slot) && !existingBarracks;
 
     if (!existingBarracks && occupiedByOther) {
       this.showToast("Build pad is occupied");
@@ -877,6 +1000,173 @@ export class RunScene extends Phaser.Scene {
       lastSpawnAt: 0,
     });
     this.showToast(`${barracksDefinition.name} ready`);
+  }
+
+  private tryBuildOrMergeStoneWall(slot: Phaser.GameObjects.Rectangle) {
+    if (this.wave < stoneWallDefinition.unlockWave) {
+      this.showToast(`Unlocks at wave ${stoneWallDefinition.unlockWave}`);
+      return;
+    }
+
+    const existingWall = this.stoneWalls.find((wall) => wall.body.x === slot.x && wall.body.y === slot.y);
+    const occupiedByOther = this.isPadOccupied(slot) && !existingWall;
+
+    if (!existingWall && occupiedByOther) {
+      this.showToast("Build pad is occupied");
+      return;
+    }
+
+    if (existingWall) {
+      const maxTier = stoneWallDefinition.maxTier;
+      if (this.coins >= 15 && existingWall.tier < maxTier) {
+        this.coins -= 15;
+        existingWall.tier += 1;
+        existingWall.body.setScale(0.46 + existingWall.tier * 0.05);
+        existingWall.badgeBg.setPosition(existingWall.body.x + 19, existingWall.body.y - 18);
+        existingWall.badge.setPosition(existingWall.badgeBg.x, existingWall.badgeBg.y);
+        existingWall.badge.setText(String(existingWall.tier));
+        this.refreshFortShield();
+        this.showToast(`${existingWall.tier === maxTier ? "Max" : "Tier"} ${existingWall.tier} wall`);
+      } else if (existingWall.tier >= maxTier) {
+        this.showToast("Wall already max tier");
+      } else {
+        this.showToast("Need 15 coins to upgrade wall");
+      }
+      return;
+    }
+
+    if (this.selectedBuildMode !== "wall") {
+      this.showToast("Select Stone Wall first");
+      return;
+    }
+
+    if (this.coins < stoneWallDefinition.baseCost) {
+      this.showToast(`Need ${stoneWallDefinition.baseCost} coins`);
+      return;
+    }
+
+    this.coins -= stoneWallDefinition.baseCost;
+    const body = this.add.image(slot.x, slot.y, "stone-wall").setScale(0.46).setDepth(8);
+    const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
+    const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "12px",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(10);
+
+    this.stoneWalls.push({ body, badgeBg, badge, tier: 1 });
+    this.refreshFortShield();
+    this.showToast(`${stoneWallDefinition.name} built`);
+  }
+
+  private tryBuildOrMergeHealingShrine(slot: Phaser.GameObjects.Rectangle) {
+    if (this.wave < healingShrineDefinition.unlockWave) {
+      this.showToast(`Unlocks at wave ${healingShrineDefinition.unlockWave}`);
+      return;
+    }
+
+    const existingShrine = this.healingShrines.find(
+      (shrine) => shrine.body.x === slot.x && shrine.body.y === slot.y,
+    );
+    const occupiedByOther = this.isPadOccupied(slot) && !existingShrine;
+
+    if (!existingShrine && occupiedByOther) {
+      this.showToast("Build pad is occupied");
+      return;
+    }
+
+    if (existingShrine) {
+      const maxTier = healingShrineDefinition.maxTier;
+      if (this.coins >= 15 && existingShrine.tier < maxTier) {
+        this.coins -= 15;
+        existingShrine.tier += 1;
+        existingShrine.body.setScale(0.46 + existingShrine.tier * 0.05);
+        existingShrine.badgeBg.setPosition(existingShrine.body.x + 19, existingShrine.body.y - 18);
+        existingShrine.badge.setPosition(existingShrine.badgeBg.x, existingShrine.badgeBg.y);
+        existingShrine.badge.setText(String(existingShrine.tier));
+        this.showToast(`${existingShrine.tier === maxTier ? "Max" : "Tier"} ${existingShrine.tier} shrine`);
+      } else if (existingShrine.tier >= maxTier) {
+        this.showToast("Shrine already max tier");
+      } else {
+        this.showToast("Need 15 coins to upgrade shrine");
+      }
+      return;
+    }
+
+    if (this.selectedBuildMode !== "shrine") {
+      this.showToast("Select Healing Shrine first");
+      return;
+    }
+
+    if (this.coins < healingShrineDefinition.baseCost) {
+      this.showToast(`Need ${healingShrineDefinition.baseCost} coins`);
+      return;
+    }
+
+    this.coins -= healingShrineDefinition.baseCost;
+    const body = this.add.image(slot.x, slot.y, "healing-shrine").setScale(0.46).setDepth(8);
+    const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
+    const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "12px",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(10);
+
+    this.healingShrines.push({ body, badgeBg, badge, tier: 1 });
+    this.showToast(`${healingShrineDefinition.name} built`);
+  }
+
+  private refreshFortShield() {
+    this.fortShieldMax = this.stoneWalls.reduce(
+      (total, wall) => total + stoneWallDefinition.stats.fortShield * wall.tier,
+      0,
+    );
+    this.fortShieldRemaining = this.fortShieldMax;
+  }
+
+  private applyFortDamage(rawDamage: number) {
+    let damage = rawDamage;
+
+    if (this.fortShieldRemaining > 0) {
+      const absorbed = Math.min(this.fortShieldRemaining, damage);
+      this.fortShieldRemaining -= absorbed;
+      damage -= absorbed;
+
+      if (absorbed > 0) {
+        this.flashCircle(195, 584, 42, stoneWallDefinition.color);
+      }
+    }
+
+    this.fortHp = Math.max(0, this.fortHp - damage);
+  }
+
+  private collectShrineRepair() {
+    if (this.wave % 5 !== 0 || this.healingShrines.length === 0) return 0;
+
+    const repair = this.healingShrines.reduce(
+      (total, shrine) => total + healingShrineDefinition.stats.repair * shrine.tier,
+      0,
+    );
+    const before = this.fortHp;
+    this.fortHp = Math.min(this.maxFortHp, this.fortHp + repair);
+    const healed = this.fortHp - before;
+
+    if (healed > 0) {
+      this.healingShrines.forEach((shrine) => {
+        this.tweens.add({
+          targets: shrine.body,
+          scale: shrine.body.scale * 1.12,
+          duration: 140,
+          yoyo: true,
+          ease: "Sine.easeOut",
+        });
+      });
+      this.flashCircle(195, 584, 52, healingShrineDefinition.color);
+    }
+
+    return healed;
   }
 
   private getTroopDefinitionForTier(tier: number) {
@@ -1021,6 +1311,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private spawnWave() {
+    this.waveReadyForClear = false;
     const definitions = this.getWaveEnemyMix();
     let delay = 0;
 
@@ -1033,10 +1324,31 @@ export class RunScene extends Phaser.Scene {
     });
 
     this.time.delayedCall(delay + 2800, () => {
-      if (this.fortHp > 0) {
-        this.showUpgradeChoice();
-      }
+      this.waveReadyForClear = true;
     });
+  }
+
+  private tryCompleteWave() {
+    if (!this.waveReadyForClear || this.isChoosingUpgrade || this.waitingToStartWave) return;
+    if (this.fortHp <= 0 || this.enemies.length > 0) return;
+
+    this.waveReadyForClear = false;
+    this.showUpgradeChoice();
+  }
+
+  private beginNextWave() {
+    if (!this.waitingToStartWave || this.isChoosingUpgrade || this.isGameOver) return;
+
+    this.waitingToStartWave = false;
+    this.setStartWaveButtonVisible(false);
+    this.refreshFortShield();
+    this.spawnWave();
+    this.showToast(`Wave ${this.wave} incoming`);
+  }
+
+  private setStartWaveButtonVisible(visible: boolean) {
+    this.startWaveButton?.setVisible(visible);
+    this.startWaveButtonText?.setVisible(visible);
   }
 
   private getWaveEnemyMix() {
@@ -1083,7 +1395,7 @@ export class RunScene extends Phaser.Scene {
       if (!currentTarget) {
         enemy.body.destroy();
         enemy.hpBar.destroy();
-        this.fortHp = Math.max(0, this.fortHp - enemy.damageToFort);
+        this.applyFortDamage(enemy.damageToFort);
         return false;
       }
 
@@ -1173,7 +1485,8 @@ export class RunScene extends Phaser.Scene {
     });
 
     if (!this.hudText) return;
-    this.hudText.setText(`HP ${this.fortHp}   Wave ${this.wave}   Coins ${this.coins}`);
+    const shieldLabel = this.fortShieldMax > 0 ? `  Shield ${this.fortShieldRemaining}` : "";
+    this.hudText.setText(`HP ${this.fortHp}${shieldLabel}   Wave ${this.wave}   Coins ${this.coins}`);
     this.waveText?.setText(`Wave ${this.wave}`);
     this.updateAbilityButton();
 
@@ -1258,10 +1571,42 @@ export class RunScene extends Phaser.Scene {
     this.showToast("Tap a build pad for barracks");
   }
 
+  private selectStoneWall() {
+    if (this.isChoosingUpgrade) return;
+
+    if (this.wave < stoneWallDefinition.unlockWave) {
+      this.showToast(`Stone Wall unlocks at wave ${stoneWallDefinition.unlockWave}`);
+      return;
+    }
+
+    this.selectedBuildMode = "wall";
+    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
+    this.clearSecondaryPickerSelection();
+    this.wallPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.showToast("Tap a build pad for stone wall");
+  }
+
+  private selectHealingShrine() {
+    if (this.isChoosingUpgrade) return;
+
+    if (this.wave < healingShrineDefinition.unlockWave) {
+      this.showToast(`Healing Shrine unlocks at wave ${healingShrineDefinition.unlockWave}`);
+      return;
+    }
+
+    this.selectedBuildMode = "shrine";
+    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
+    this.clearSecondaryPickerSelection();
+    this.shrinePickerButton?.setStrokeStyle(4, 0xffffff);
+    this.showToast("Tap a build pad for healing shrine");
+  }
+
   private clearSecondaryPickerSelection() {
     this.trapPickerButton?.setStrokeStyle(2, 0xffffff);
     this.coinMillPickerButton?.setStrokeStyle(2, 0xffffff);
     this.barracksPickerButton?.setStrokeStyle(2, 0xffffff);
+    this.wallPickerButton?.setStrokeStyle(2, 0xffffff);
+    this.shrinePickerButton?.setStrokeStyle(2, 0xffffff);
   }
 
   private showToast(message: string) {
@@ -1359,6 +1704,8 @@ export class RunScene extends Phaser.Scene {
     if (this.isChoosingUpgrade || this.isGameOver) return;
 
     const millIncome = this.collectCoinMillIncome();
+    const shrineHeal = this.collectShrineRepair();
+    this.refreshFortShield();
     this.isChoosingUpgrade = true;
     this.syncTimeScale();
     const offeredUpgrades = this.pickUpgrades();
@@ -1377,17 +1724,30 @@ export class RunScene extends Phaser.Scene {
       fontStyle: "bold",
     }).setOrigin(0.5));
 
+    let bonusY = 206;
     if (millIncome > 0) {
-      overlay.add(this.add.text(195, 206, `Coin mills +${millIncome}`, {
+      overlay.add(this.add.text(195, bonusY, `Coin mills +${millIncome}`, {
         color: "#fff7da",
         fontFamily: "Arial",
         fontSize: "14px",
         fontStyle: "bold",
       }).setOrigin(0.5));
+      bonusY += 22;
     }
 
+    if (shrineHeal > 0) {
+      overlay.add(this.add.text(195, bonusY, `Shrines repaired +${shrineHeal} HP`, {
+        color: "#b8f5cc",
+        fontFamily: "Arial",
+        fontSize: "14px",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+      bonusY += 22;
+    }
+
+    const cardStartY = bonusY > 206 ? bonusY + 18 : 247;
     offeredUpgrades.forEach((upgrade, index) => {
-      const y = 247 + index * 106;
+      const y = cardStartY + index * 106;
       overlay.add(this.createUpgradeCard(upgrade, 195, y));
     });
 
@@ -1438,8 +1798,9 @@ export class RunScene extends Phaser.Scene {
     this.coins += 30;
     this.refreshSecondaryPickerLocks();
     this.updateRunControls();
-    this.showToast(`${upgrade.name} gained`);
-    this.spawnWave();
+    this.showToast(`${upgrade.name} gained — tap Start Wave`);
+    this.waitingToStartWave = true;
+    this.setStartWaveButtonVisible(true);
   }
 
   private refreshSecondaryPickerLocks() {
@@ -1456,6 +1817,16 @@ export class RunScene extends Phaser.Scene {
     if (this.barracksPickerButton) {
       const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
       this.barracksPickerButton.setFillStyle(barracksUnlocked ? barracksDefinition.color : 0x4b5563);
+    }
+
+    if (this.wallPickerButton) {
+      const wallUnlocked = this.wave >= stoneWallDefinition.unlockWave;
+      this.wallPickerButton.setFillStyle(wallUnlocked ? stoneWallDefinition.color : 0x4b5563);
+    }
+
+    if (this.shrinePickerButton) {
+      const shrineUnlocked = this.wave >= healingShrineDefinition.unlockWave;
+      this.shrinePickerButton.setFillStyle(shrineUnlocked ? healingShrineDefinition.color : 0x4b5563);
     }
   }
 

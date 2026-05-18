@@ -85,3 +85,24 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Store agent session handoffs in `docs/handoffs/` as dated files (`YYYY-MM-DD.md`) with `LATEST.md` pointing to the newest. Create or replace a handoff only when the user explicitly asks—not after every task.
 - **Reasoning:** Keeps history, avoids stale auto-handoffs, and makes the next session’s entry point obvious.
+
+## DEC-013: Stone Walls Grant Refilling Fort Shield
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Stone walls on build pads add a pooled fort shield (18 × tier per wall). The pool absorbs incoming fort damage and refills to max when a new wave starts.
+- **Reasoning:** Matches the wall role, gives a distinct defensive economy choice on shared pads, and telegraphs protection with HUD shield + hit flash.
+
+## DEC-014: Healing Shrine Repairs After Boss Waves
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Healing shrines on build pads restore fort HP (12 × tier per shrine) when a boss wave (every 5 waves) is cleared, shown on the wave-cleared overlay.
+- **Reasoning:** Ties support buildings to boss pacing and rewards shrine investment without passive regen every wave.
+
+## DEC-015: Manual Start Wave Between Upgrades
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** After picking a roguelike upgrade, show a Start Wave button instead of auto-spawning the next wave. The first wave still starts on run begin.
+- **Reasoning:** Gives players time to build or merge after upgrades and matches the planned start-wave control from the handoff checklist.

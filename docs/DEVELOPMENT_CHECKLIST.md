@@ -22,6 +22,7 @@
 - [x] Hero ability button.
 - [x] Enemy path.
 - [x] Enemy spawn timer.
+- [x] Manual start-wave button.
 - [x] Enemy reaches fort and deals damage.
 - [x] Tower placement slot.
 - [x] Tower shoots enemy.
@@ -59,6 +60,8 @@
 - [x] Spike trap.
 - [x] Barracks.
 - [x] Coin mill.
+- [x] Stone wall.
+- [x] Healing shrine.
 - [x] Grunt enemy.
 - [x] Runner enemy.
 - [x] Tank enemy.
