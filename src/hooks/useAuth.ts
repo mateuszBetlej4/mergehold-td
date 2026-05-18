@@ -114,9 +114,15 @@ export function useAuth(): AuthState {
 
     setStatus("loading");
     setError(null);
-    const { error: signUpError } = await supabase.auth.signUp({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
     if (signUpError) {
       setError(signUpError.message);
+      setStatus("guest");
+      return;
+    }
+
+    if (!data.session) {
+      setError("Account created. Check your email if confirmation is enabled, then sign in.");
       setStatus("guest");
     }
   }
