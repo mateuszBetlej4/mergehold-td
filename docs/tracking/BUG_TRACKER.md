@@ -42,7 +42,50 @@ Verification:
 
 ## Active Bugs
 
-_No open bugs as of 2026-05-18. Audit items BUG-006–BUG-017 are resolved in **Fixed Bugs (audit 2026-05-18)** below. Meta (006–009) and run lifecycle (007, 016) are **Verified** per DEC-020 / DEC-024; graphics QA (017) is **Verified** (DEC-021); gameplay content (013) is **Verified** (DEC-025)._
+| ID | Title | Status | Severity | Notes |
+|----|-------|--------|----------|-------|
+| **BUG-018** | Runner Kenney sprite faces wrong on path | Confirmed | S3 | User report + git history: `b1d2bb4` had offset `0`; DEC-021 set `+π/2`. Reconcile with live play @ 390×844. |
+| **BUG-010** | Collection letter tokens | Fixed | S3 | Needs **Verified** — `CatalogThumb` / `catalogSprites.ts` |
+| **BUG-011** | Settings asset credits copy | Fixed | S4 | Needs **Verified** |
+| **BUG-012** | Collection upgrades vs meta shop | Fixed | S3 | Needs **Verified** — `run-upgrades` screen |
+| **BUG-014** | Deploy tile in prod Home | Fixed | S3 | Needs **Verified** — `import.meta.env.DEV` gate |
+| **BUG-015** | Audio toggles not persisted | Fixed | S3 | Needs **Verified** — `PlayerProgress` audio fields |
+
+**Handoff:** `docs/handoffs/2026-05-18-bug-fix.md` (see `LATEST.md`).
+
+_Audit BUG-006–009, 007, 013, 016, 017 are **Verified** in **Fixed Bugs** below._
+
+---
+
+ID: BUG-018
+Title: Runner Kenney sprite faces wrong direction on path (possible DEC-021 regression)
+Status: Confirmed
+Severity: S3
+Area: Graphics / gameplay polish
+Found in: User report 2026-05-18; cross-check BUG-017 / DEC-021
+Owner: Bug-fix agent
+Date opened: 2026-05-18
+Related issue: DEC-021, BUG-017
+
+Steps to reproduce:
+1. `npm run dev` → Play @ **390×844**, **1.5×** speed.
+2. Start run; reach **wave 2+** (runner in mix).
+3. Watch `kenney-enemy-runner` on each path leg: top vertical, diagonal, horizontal, diagonal, bottom vertical toward fort.
+
+Expected:
+Runner faces travel direction on all segments (same standard as grunt/tank after BUG-017).
+
+Actual:
+User reports runner animation/direction looks wrong — may have regressed when offsets were changed for graphics QA.
+
+Notes:
+- **`runner` id** → texture `kenney-enemy-runner` (Kenney PNG). **`bat` id** → `enemy-runner` (project SVG + tint) — separate keys; do not tune bat when fixing runner.
+- Git: `b1d2bb4` (`Add run graphics polish…`) had `"kenney-enemy-runner": 0`. Current `RunScene.ts` has `+π/2` per DEC-021 (art “faces up” at rot 0).
+- `docs/GRAPHICS.md` table must stay in sync with code.
+- If PNG art actually faces **right** (like grunt), offset should be `0`; if **up**, keep `+π/2`. Verify on **both** vertical and horizontal legs.
+
+Verification:
+Offset corrected (if needed); `npm run build`; play wave 2–4; update DEC-021 or add DEC-026 if product decision changes.
 
 ---
 
