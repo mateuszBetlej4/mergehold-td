@@ -2,6 +2,17 @@
 
 Record meaningful product and technical decisions here so future development has context.
 
+**Balance reference:** [`docs/balance/GAME_BALANCE.md`](../balance/GAME_BALANCE.md) — runtime owner `RunScene.ts`, data `src/data/*`.
+
+### Recent (2026-05-18)
+
+| DEC | Topic |
+|-----|--------|
+| [DEC-031](#dec-031-economy-rebalance--coin-ledger) | Meta gem cap, kill rewards, Merchant's Ledger, mill income |
+| [DEC-032](#dec-032-combat--economy-sink-pass-buildtier-costs--wave-pressure) | Build/tier costs, HP `+wave×6`, wave pressure, stipend 25+10 boss |
+
+**Supersedes (partial):** DEC-029 spawn HP scale `×5` → **DEC-032** `×6`; DEC-031 stipend `35+20` → **DEC-032** `25+10`; DEC-020 fort bonus `coins×0.08` → **DEC-031** capped `min(24, floor(coins×0.04))`.
+
 ## DEC-001: Use Vite, React, TypeScript, Phaser 3
 
 - **Date:** 2026-05-18
@@ -139,7 +150,8 @@ Record meaningful product and technical decisions here so future development has
 
 - **Date:** 2026-05-18
 - **Status:** Accepted
-- **Decision:** On each wave clear, persist `bestWave` to the cleared wave and bank a small gem drip (`max(3, floor(wave * 2))`). Fort loss adds a separate completion bonus (`max(8, floor(wave * 12 + coins * 0.08))`). Leaving run via Home calls `forfeitRun`: keep wave-clear progress and drips already earned; no completion bonus. Hero/map unlock gates use highest **cleared** wave (`bestWave`), matching “Clear wave N” copy.
+- **Decision:** On each wave clear, persist `bestWave` to the cleared wave and bank a small gem drip (`max(3, floor(wave * 2))`). Fort loss adds a separate completion bonus (see **DEC-031** for current coin term). Leaving run via Home calls `forfeitRun`: keep wave-clear progress and drips already earned; no completion bonus. Hero/map unlock gates use highest **cleared** wave (`bestWave`), matching “Clear wave N” copy.
+- **Fort bonus (current):** `max(8, floor(wave × 12 + min(24, floor(coins × 0.04))))` — **DEC-031**; original uncapped `coins × 0.08` retained here for history only.
 - **Reasoning:** Fixes misleading unlocks and zero-gem mid-run exits. Completion bonus still rewards full runs that end in fort loss.
 - **Implemented:** 2026-05-18 — `useGameStore.recordWaveClear`, `forfeitRun`, `claimRunRewards`, `runEndSummary`; `RunScene.showUpgradeChoice`; meta + run UI (BUG-006/008/009). Leave/end-run UX: DEC-024 (BUG-007/016).
 
@@ -205,7 +217,7 @@ Record meaningful product and technical decisions here so future development has
 
 - **Date:** 2026-05-18
 - **Status:** Accepted
-- **Decision:** Use `src/data/waves.ts` as the runtime spawn source (`getWaveSpawnGroups`). Explicit tables for waves 1–15; procedural fallback uses DEC-025 tier IDs with a **shared** spawn budget (`8 + floor(wave × 0.75)`, cap 28) split across types — not `min(6, 1 + wave)` per archetype. HP scaling: `definition.hp + wave × 5`. Fort damage multiplier stays `× 0.55`.
+- **Decision:** Use `src/data/waves.ts` as the runtime spawn source (`getWaveSpawnGroups`). Explicit tables for waves 1–15; procedural fallback uses DEC-025 tier IDs with a **shared** spawn budget (`8 + floor(wave × 0.75)`, cap 28) split across types — not `min(6, 1 + wave)` per archetype. HP scaling at ship: `definition.hp + wave × 5` (**superseded by DEC-032:** `wave × 6`). Fort damage multiplier stays `× 0.55`.
 - **Reasoning:** Old `getWaveEnemyMix` × per-type count produced 36–54 enemies by wave 8 (handoff research). Wave 8 now spawns 16 enemies (3G+4R+2T+2D+3B+2X). Boss waves 5/10/15 remain gatebreaker-only.
 
 ### Research snapshot (code + @ 390×844, guardian loadout)
@@ -243,7 +255,7 @@ Record meaningful product and technical decisions here so future development has
 - **Decision:** Tune in-run coin sources/sinks and meta gem fort-bonus hoarding without changing DEC-020 drip policy or DEC-024 forfeit rules.
   - **Kill rewards:** grunt 6, runner 7, gatebreaker 115 (was 5/6/90).
   - **Coin mill:** `15 × tier` income per wave clear (was 12).
-  - **Wave stipend:** +35 on upgrade pick; **+20** extra on boss waves (`wave % 5 === 0`).
+  - **Wave stipend:** +35 on upgrade pick; **+20** extra on boss waves (`wave % 5 === 0`) — **superseded by DEC-032:** +25 / +10 boss.
   - **Fort loss gem bonus:** `max(8, floor(wave × 12 + min(24, floor(coins × 0.04))))` — caps coin hoarding vs drip (was uncapped `coins × 0.08`).
   - **Meta shop:** add **Merchant's Ledger** (`coinGain`) — +5% kill rewards per level, 40 gem base cost; stacks with mage / Gold Rush in `applyLoadout`.
 - **Reasoning:** Code ledger + strategy B simulation @ 390×844 (guardian, 100% kills): boss-only waves starved kill income vs mixed waves; fort bonus at 400+ coins dominated session gems; mill ROI on 40g build was ~4 clears at tier 1. Boss stipend keeps W5→W6 affordable without inflating normal waves. Hoarding cap preserves DEC-020 hybrid model.
@@ -283,5 +295,6 @@ Record meaningful product and technical decisions here so future development has
   - **Income:** wave stipend **25** (+10 boss); kill rewards unchanged from DEC-031.
   - **Combat:** spawn HP `baseHp + wave × 6`; tank 115, shield 82, gatebreaker 520 base HP.
   - **Waves:** W4 +1 shield; W7 +1 runner; W8 +1 bomber; W9 +1 tank.
-- **Post-pass coin path (strategy B, 100% kills):** after W4 **~383** (was ~460); after W5 **~533** (was ~630) — still affords magic or mill + tier, not both plus extras without tradeoffs.
+- **Post-pass coin path (strategy B, 100% kills):** after W4 **~393** (was ~460); after W5 **~543** (was ~630) — still affords magic or mill + tier, not both plus extras without tradeoffs.
 - **Implemented:** `buildings.ts`, `enemies.ts`, `waves.ts`, `RunScene.ts`, `GAME_BALANCE.md`, `catalogStats.ts`, `App.tsx`; `npm run build`.
+- **Tracker:** BUG-023 (economy tuning) → Verified.

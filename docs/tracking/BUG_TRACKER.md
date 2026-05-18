@@ -2,6 +2,8 @@
 
 Use this file for known bugs during development. When GitHub Issues are active, each bug should either link to a GitHub issue or be migrated into one.
 
+**Balance / economy log:** [`DECISION_LOG.md`](./DECISION_LOG.md) — [DEC-031](./DECISION_LOG.md#dec-031-economy-rebalance--coin-ledger) (gems, kill rewards, `coinGain`), [DEC-032](./DECISION_LOG.md#dec-032-combat--economy-sink-pass-buildtier-costs--wave-pressure) (build costs 30/52/65, pad tier **25**, stipend **25+10** boss, HP `+wave×6`). Numbers: [`GAME_BALANCE.md`](../balance/GAME_BALANCE.md).
+
 ## Status Values
 
 - `New`
@@ -42,7 +44,7 @@ Verification:
 
 ## Active Bugs
 
-**Handoff:** `docs/handoffs/2026-05-18-game-balancing.md` — deferred scope (DEC-030).
+**Handoffs:** [economy](../handoffs/2026-05-18-economy.md) (DEC-031/032 **done**), [game-balancing](../handoffs/2026-05-18-game-balancing.md) (DEC-029/030 done; deferred BUG-021/022).
 
 ---
 
@@ -54,7 +56,7 @@ Area: Meta / Balance
 Found in: Game balancing pass 2026-05-18
 Owner: Economy agent
 Date opened: 2026-05-18
-Related issue: DEC-030, DEC-031, FEATURE_SPEC.md § Permanent Upgrades
+Related issue: DEC-030, DEC-031, DEC-032, FEATURE_SPEC.md § Permanent Upgrades
 
 Steps to reproduce:
 1. Open Permanent Upgrades (nav or Home).
@@ -68,6 +70,8 @@ Actual:
 
 Notes:
 **DEC-031 (2026-05-18):** `coinGain` implemented (+5% kill rewards/level, 40 gem base). Troop HP + reroll deferred — combat/UX scope.
+
+**DEC-032 (2026-05-18):** In-run build/tier economy tightened separately (see BUG-023).
 
 Verification:
 Open Upgrades → Merchant's Ledger row visible; buy applies `rewardMultiplier` in `RunScene.applyLoadout`.
@@ -102,7 +106,7 @@ N/A — deferred.
 
 ---
 
-**Previous active sweep:** BUG-019, BUG-020 — see **Fixed Bugs** below.
+**Previous active sweep:** BUG-019, BUG-020, BUG-023 — see **Fixed Bugs** below.
 
 **Handoff:** `docs/handoffs/2026-05-18-bug-fix.md` (see `LATEST.md`).
 
@@ -199,6 +203,38 @@ Verification:
 
 ---
 
+## Fixed Bugs (balance / economy 2026-05-18)
+
+ID: BUG-023
+Title: In-run economy too generous — easy tower buys and tier upgrades
+Status: Verified
+Severity: S3
+Area: Balance / Economy
+Found in: Economy agent playtest 2026-05-18 (post DEC-031)
+Owner: Economy agent
+Date opened: 2026-05-18
+Date closed: 2026-05-18
+Related issue: DEC-032, DEC-031, `docs/handoffs/2026-05-18-economy.md`
+
+Steps to reproduce:
+1. Start guardian run @ 390×844.
+2. Place archer W1, tier W2, cannon W4 (strategy B).
+3. Note coins entering W5.
+
+Expected:
+Meaningful tradeoffs — cannot afford multiple major buys (second tower line + mill + tiers) before boss without skipping upgrades.
+
+Actual (pre–DEC-032):
+~460 coins before W5 with minimal build; pad tier cost 15; towers 20/35/45.
+
+Notes:
+**DEC-032:** `padTierUpgradeCost` 25; towers 30/52/65; support 35–78; stipend 25 (+10 boss); HP `base + wave×6`; tank/shield/boss HP bump; waves 4/7–9 pressure. Post-pass strategy B: **~393** after W4, **~543** after W5 (`npm run build` ledger).
+
+Verification:
+Code + coin simulation 2026-05-18; `GAME_BALANCE.md` and `DECISION_LOG.md` DEC-032 updated.
+
+---
+
 ## Fixed Bugs (audit 2026-05-18)
 
 ID: BUG-006
@@ -223,7 +259,7 @@ Actual:
 `claimRunRewards()` runs only from `RunScene.claimEndOfRunRewards()` when `fortHp <= 0`. Early exit earns 0 gems; `bestWave` stays at prior value. Unlock gates use `progress.bestWave` in `App.tsx` but never advance until a losing run ends.
 
 Notes:
-Formula exists: `Math.max(8, Math.floor(wave * 12 + coins * 0.08))` in `useGameStore.ts`. Product decision needed: award on wave clear, on abandon forfeit, or both.
+Original formula `coins × 0.08` in fort bonus; **DEC-031** capped to `min(24, floor(coins × 0.04))`. Wave drip + forfeit policy unchanged (**DEC-024**).
 
 Verification:
 `recordWaveClear()` banks gem drip and updates `bestWave` each wave; `claimRunRewards()` adds fort-loss bonus. Hero/map gates use cleared-wave `bestWave` (DEC-020). 2026-05-18: upgrade overlay “+N gems banked”; `npm run build` pass; browser @ 390×844.
@@ -547,16 +583,16 @@ Steps to reproduce:
 2. With a tower type still selected, tap the same pad again to merge/upgrade.
 
 Expected:
-Spending 15 coins upgrades the tower tier.
+Spending coins upgrades the tower tier (see `padTierUpgradeCost` in `buildings.ts`).
 
 Actual:
 `tryBuildOrMerge` called `isPadOccupied()` before checking for an existing tower on that pad, so the occupied check fired and blocked the upgrade path.
 
 Notes:
-Tower upgrade logic existed but was unreachable when a tower was already on the pad.
+Tower upgrade logic existed but was unreachable when a tower was already on the pad. Pad tier cost was **15** at fix time; **DEC-032** raised to **25**.
 
 Verification:
-2026-05-18 — Tap placed tower with tower mode selected; tier increases for 15 coins. `npm run build` pass; no regression in bug-fix sweep.
+2026-05-18 — Tap placed tower with tower mode selected; tier increases for coins. `npm run build` pass; no regression in bug-fix sweep. Current cost: **25** (DEC-032).
 
 ---
 
