@@ -288,3 +288,11 @@ You are the **game balancing agent** for **Mergehold TD**.
 Repo: `C:\Users\mateuszb\Documents\AI Projects\TD`
 
 ---
+
+## Balance documentation (shipped)
+
+Full reference for designers and future agents:
+
+**[`docs/balance/GAME_BALANCE.md`](../balance/GAME_BALANCE.md)** — spawn tables, formulas, enemy/tower stats, upgrades, meta gems, TTK notes, and deferred gaps.
+
+---

@@ -44,7 +44,7 @@ export const upgradeDefinitions: UpgradeDefinition[] = [
     id: "arcane-focus",
     name: "Arcane Focus",
     rarity: "rare",
-    description: "Magic towers prioritize armored enemies.",
+    description: "Magic towers ignore armor and prioritize armored enemies.",
     target: "magic-priority",
     value: 1,
   },

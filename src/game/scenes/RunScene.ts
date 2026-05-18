@@ -5,6 +5,7 @@ import { heroDefinitions } from "../../data/heroes";
 import { mapDefinitions } from "../../data/maps";
 import { troopDefinitions, type TroopDefinition } from "../../data/troops";
 import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
+import { getWaveSpawnGroups } from "../../data/waves";
 import { useGameStore } from "../../state/useGameStore";
 import {
   gameBridge,
@@ -13,10 +14,14 @@ import {
   type RunUiStruct,
 } from "../gameBridge";
 
+type DamageSource = "archer" | "cannon" | "magic" | "trap" | "troop" | "hero" | "other";
+
 type Enemy = {
   body: Phaser.GameObjects.Image;
   hpBar: Phaser.GameObjects.Rectangle;
   pathIndex: number;
+  enemyId: string;
+  archetype: EnemyDefinition["archetype"];
   hp: number;
   maxHp: number;
   speed: number;
@@ -42,6 +47,7 @@ type Tower = {
 type Projectile = {
   body: Phaser.GameObjects.Image;
   target: Enemy;
+  towerId: string;
   damage: number;
   speed: number;
 };
@@ -212,6 +218,8 @@ export class RunScene extends Phaser.Scene {
   private towerDamageMultiplier = 1;
   private fireRateMultiplier = 1;
   private rewardMultiplier = 1;
+  private cannonSplashBonus = 0;
+  private magicPrioritizeArmored = false;
   private runRewardClaimed = false;
   private highestClearedWave = 0;
   private lastMetaWaveRewarded = 0;
@@ -1125,10 +1133,10 @@ export class RunScene extends Phaser.Scene {
                 (enemy) =>
                   Phaser.Math.Distance.Between(troop.body.x, troop.body.y, enemy.body.x, enemy.body.y) < troop.attackRange,
               )
-              .forEach((enemy) => this.damageEnemy(enemy, troop.damage));
+              .forEach((enemy) => this.damageEnemy(enemy, troop.damage, "troop"));
             this.flashCircle(troop.body.x, troop.body.y, troop.attackRange, 0xf2c14e);
           } else {
-            this.damageEnemy(target, troop.damage);
+            this.damageEnemy(target, troop.damage, "troop");
           }
         }
       }
@@ -1172,6 +1180,7 @@ export class RunScene extends Phaser.Scene {
       if (time - trap.lastTriggeredAt < trap.cooldownMs) return;
 
       const target = this.enemies.find((enemy) => {
+        if (enemy.archetype === "flyer") return false;
         return (
           Phaser.Math.Distance.Between(trap.body.x, trap.body.y, enemy.body.x, enemy.body.y) < trap.triggerRadius
         );
@@ -1180,7 +1189,7 @@ export class RunScene extends Phaser.Scene {
       if (!target) return;
 
       trap.lastTriggeredAt = time;
-      this.damageEnemy(target, trap.damage);
+      this.damageEnemy(target, trap.damage, "trap");
       this.pulseTrap(trap);
     });
   }
@@ -1198,14 +1207,16 @@ export class RunScene extends Phaser.Scene {
 
   private spawnWave() {
     this.waveReadyForClear = false;
-    const definitions = this.getWaveEnemyMix();
+    const groups = getWaveSpawnGroups(this.wave);
     let delay = 0;
 
-    definitions.forEach((definition) => {
-      const count = definition.archetype === "boss" ? 1 : Math.min(6, 1 + this.wave);
-      for (let index = 0; index < count; index += 1) {
+    groups.forEach((group) => {
+      const definition = enemyDefinitions.find((enemy) => enemy.id === group.enemyId);
+      if (!definition) return;
+
+      for (let index = 0; index < group.count; index += 1) {
         this.time.delayedCall(delay, () => this.spawnEnemy(definition));
-        delay += definition.archetype === "boss" ? 1300 : 760;
+        delay += group.intervalMs;
       }
     });
 
@@ -1232,20 +1243,6 @@ export class RunScene extends Phaser.Scene {
     this.showToast(`Wave ${this.wave} incoming`);
   }
 
-  private getWaveEnemyMix() {
-    if (this.wave % 5 === 0) {
-      return enemyDefinitions.filter((enemy) => enemy.id === "gatebreaker");
-    }
-
-    const mix = ["grunt"];
-    if (this.wave >= 2) mix.push("runner");
-    if (this.wave >= 4) mix.push("tank", "shield");
-    if (this.wave >= 6) mix.push("bat");
-    if (this.wave >= 8) mix.push("bomber");
-
-    return enemyDefinitions.filter((enemy) => mix.includes(enemy.id));
-  }
-
   private spawnEnemy(definition: EnemyDefinition) {
     const assetKey = enemyAssetKeys[definition.id] ?? "kenney-enemy-grunt";
     const isBoss = definition.archetype === "boss";
@@ -1263,12 +1260,16 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(17);
 
+    const scaledHp = definition.hp + this.wave * 5;
+
     this.enemies.push({
       body,
       hpBar,
       pathIndex: 1,
-      hp: definition.hp + this.wave * 6,
-      maxHp: definition.hp + this.wave * 6,
+      enemyId: definition.id,
+      archetype: definition.archetype,
+      hp: scaledHp,
+      maxHp: scaledHp,
       speed: (0.046 + this.wave * 0.0015) * definition.speed,
       reward: Math.ceil(definition.reward * this.rewardMultiplier),
       damageToFort: Math.ceil(definition.damageToFort * 0.55),
@@ -1285,7 +1286,13 @@ export class RunScene extends Phaser.Scene {
       if (!currentTarget) {
         enemy.body.destroy();
         enemy.hpBar.destroy();
-        this.applyFortDamage(enemy.damageToFort);
+        if (enemy.archetype === "exploder") {
+          this.applyFortDamage(enemy.damageToFort);
+          this.applyFortDamage(Math.ceil(enemy.damageToFort * 0.55));
+          this.flashCircle(195, 584, 72, 0xb5442f);
+        } else {
+          this.applyFortDamage(enemy.damageToFort);
+        }
         return false;
       }
 
@@ -1316,13 +1323,24 @@ export class RunScene extends Phaser.Scene {
   }
 
   private findTowerTarget(tower: Tower) {
-    return this.enemies
-      .filter((enemy) => Phaser.Math.Distance.Between(tower.body.x, tower.body.y, enemy.body.x, enemy.body.y) < tower.range)
-      .sort((a, b) => {
-        const distanceA = Phaser.Math.Distance.Between(tower.body.x, tower.body.y, a.body.x, a.body.y);
-        const distanceB = Phaser.Math.Distance.Between(tower.body.x, tower.body.y, b.body.x, b.body.y);
-        return distanceA - distanceB;
-      })[0];
+    const inRange = this.enemies.filter(
+      (enemy) => Phaser.Math.Distance.Between(tower.body.x, tower.body.y, enemy.body.x, enemy.body.y) < tower.range,
+    );
+
+    return inRange.sort((a, b) => {
+      if (tower.towerId === "magic-tower" && this.magicPrioritizeArmored) {
+        const armorScore = (enemy: Enemy) => {
+          if (enemy.archetype === "shield" || enemy.archetype === "tank" || enemy.archetype === "boss") return 0;
+          return 1;
+        };
+        const armorDelta = armorScore(a) - armorScore(b);
+        if (armorDelta !== 0) return armorDelta;
+      }
+
+      const distanceA = Phaser.Math.Distance.Between(tower.body.x, tower.body.y, a.body.x, a.body.y);
+      const distanceB = Phaser.Math.Distance.Between(tower.body.x, tower.body.y, b.body.x, b.body.y);
+      return distanceA - distanceB;
+    })[0];
   }
 
   private aimTowers(delta: number) {
@@ -1352,9 +1370,34 @@ export class RunScene extends Phaser.Scene {
     this.projectiles.push({
       body: projectile,
       target,
+      towerId: tower.towerId,
       damage: tower.damage,
       speed: 0.42,
     });
+  }
+
+  private getProjectileDamageSource(towerId: string): DamageSource {
+    if (towerId === "archer-tower") return "archer";
+    if (towerId === "cannon-tower") return "cannon";
+    if (towerId === "magic-tower") return "magic";
+    return "other";
+  }
+
+  private applyCannonSplash(primary: Enemy, damage: number, hitX: number, hitY: number) {
+    const cannonDefinition = buildingDefinitions.find((building) => building.id === "cannon-tower");
+    const baseSplash = cannonDefinition?.stats.splash ?? 42;
+    const splashRadius = baseSplash * (1 + this.cannonSplashBonus);
+    const splashDamage = Math.max(1, Math.round(damage * 0.45));
+
+    this.enemies.forEach((enemy) => {
+      if (enemy === primary || !enemy.body.active) return;
+      const distance = Phaser.Math.Distance.Between(hitX, hitY, enemy.body.x, enemy.body.y);
+      if (distance <= splashRadius) {
+        this.damageEnemy(enemy, splashDamage, "cannon");
+      }
+    });
+
+    this.flashCircle(hitX, hitY, splashRadius, 0x81523f);
   }
 
   private moveProjectiles(delta: number) {
@@ -1372,15 +1415,16 @@ export class RunScene extends Phaser.Scene {
       );
 
       if (distance < 9) {
-        projectile.target.hp -= projectile.damage;
-        projectile.body.destroy();
+        const source = this.getProjectileDamageSource(projectile.towerId);
+        const hitX = projectile.target.body.x;
+        const hitY = projectile.target.body.y;
+        this.damageEnemy(projectile.target, projectile.damage, source);
 
-        if (projectile.target.hp <= 0) {
-          this.coins += projectile.target.reward;
-          projectile.target.body.destroy();
-          projectile.target.hpBar.destroy();
+        if (projectile.towerId === "cannon-tower") {
+          this.applyCannonSplash(projectile.target, projectile.damage, hitX, hitY);
         }
 
+        projectile.body.destroy();
         return false;
       }
 
@@ -1538,7 +1582,7 @@ export class RunScene extends Phaser.Scene {
         .sort((a, b) => b.hp - a.hp)
         .slice(0, 3);
       targets.forEach((enemy) => {
-        this.damageEnemy(enemy, 72);
+        this.damageEnemy(enemy, 72, "hero");
         const tracer = this.add.line(0, 0, 195, 530, enemy.body.x, enemy.body.y, 0xf2c14e, 0.85).setOrigin(0).setDepth(50);
         this.tweens.add({ targets: tracer, alpha: 0, duration: 260, onComplete: () => tracer.destroy() });
       });
@@ -1546,15 +1590,22 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
-    this.enemies.forEach((enemy) => this.damageEnemy(enemy, 46));
+    this.enemies.forEach((enemy) => this.damageEnemy(enemy, 46, "hero"));
     this.flashCircle(195, 326, 170, 0xb85c38);
     this.showToast("Meteor sigil burned the lane");
   }
 
-  private damageEnemy(enemy: Enemy, damage: number) {
+  private resolveDamage(enemy: Enemy, damage: number, source: DamageSource) {
+    if (enemy.archetype === "shield" && source === "archer") {
+      return damage * 0.5;
+    }
+    return damage;
+  }
+
+  private damageEnemy(enemy: Enemy, damage: number, source: DamageSource = "other") {
     if (!enemy.body.active) return;
 
-    enemy.hp -= damage;
+    enemy.hp -= this.resolveDamage(enemy, damage, source);
     enemy.body.setTintFill(0xffffff);
     this.time.delayedCall(80, () => {
       if (!enemy.body.active) return;
@@ -1706,13 +1757,11 @@ export class RunScene extends Phaser.Scene {
   private applyUpgrade(upgrade: UpgradeDefinition) {
     switch (upgrade.target) {
       case "archer-damage":
-        this.towerDamageMultiplier += upgrade.value;
-        this.towers.forEach((tower) => {
-          tower.damage *= 1 + upgrade.value;
-        });
-        this.traps.forEach((trap) => {
-          trap.damage *= 1 + upgrade.value;
-        });
+        this.towers
+          .filter((tower) => tower.towerId === "archer-tower")
+          .forEach((tower) => {
+            tower.damage *= 1 + upgrade.value;
+          });
         break;
       case "fire-rate":
         this.fireRateMultiplier = Math.max(0.55, this.fireRateMultiplier - upgrade.value);
@@ -1728,14 +1777,20 @@ export class RunScene extends Phaser.Scene {
         this.rewardMultiplier += upgrade.value;
         break;
       case "cannon-splash":
+        this.cannonSplashBonus += upgrade.value;
+        this.towers
+          .filter((tower) => tower.towerId === "cannon-tower")
+          .forEach((tower) => {
+            tower.damage *= 1 + upgrade.value * 0.35;
+          });
+        break;
       case "magic-priority":
-        this.towerDamageMultiplier += upgrade.value * 0.5;
-        this.towers.forEach((tower) => {
-          tower.damage *= 1 + upgrade.value * 0.5;
-        });
-        this.traps.forEach((trap) => {
-          trap.damage *= 1 + upgrade.value * 0.5;
-        });
+        this.magicPrioritizeArmored = true;
+        this.towers
+          .filter((tower) => tower.towerId === "magic-tower")
+          .forEach((tower) => {
+            tower.damage *= 1 + upgrade.value * 0.12;
+          });
         break;
       default:
         this.coins += 25;

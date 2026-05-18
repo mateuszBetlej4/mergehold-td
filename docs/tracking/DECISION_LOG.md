@@ -200,3 +200,38 @@ Record meaningful product and technical decisions here so future development has
 - **Decision:** `getWaveEnemyMix()` uses a cumulative tier table: wave 1 grunt only; wave 2+ runner; wave 4+ tank and shield; wave 6+ bat; wave 8+ bomber; every 5th wave (5, 10, …) gatebreaker boss only (DEC-015). HP scaling `definition.hp + wave * 6` unchanged.
 - **Reasoning:** Closes AUD-011 / BUG-013. Bat and bomber were defined and asset-mapped (DEC-017) but never selected for spawn. Staggered intro avoids dumping all archetypes on wave 4; boss waves stay milestone fights.
 - **Implemented:** 2026-05-18 — `RunScene.ts` `getWaveEnemyMix()`; `npm run build`; browser @ 390×844 @ 1.5× through wave 6+ (W5 boss-only confirmed).
+
+## DEC-029: Wave Spawn Tables + Combat Ability Pass
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Use `src/data/waves.ts` as the runtime spawn source (`getWaveSpawnGroups`). Explicit tables for waves 1–15; procedural fallback uses DEC-025 tier IDs with a **shared** spawn budget (`8 + floor(wave × 0.75)`, cap 28) split across types — not `min(6, 1 + wave)` per archetype. HP scaling: `definition.hp + wave × 5`. Fort damage multiplier stays `× 0.55`.
+- **Reasoning:** Old `getWaveEnemyMix` × per-type count produced 36–54 enemies by wave 8 (handoff research). Wave 8 now spawns 16 enemies (3G+4R+2T+2D+3B+2X). Boss waves 5/10/15 remain gatebreaker-only.
+
+### Research snapshot (code + @ 390×844, guardian loadout)
+
+| Wave | Total spawns | Example mix | Grunt effective HP | All-leak fort dmg |
+|------|-------------|-------------|-------------------|-------------------|
+| 1 | 6 | grunt×6 | 35 | ~24 (13% of 180) |
+| 5 | 1 | gatebreaker | 505 | ~19 |
+| 8 | 16 | mixed + bat/bomber | 70 (grunt) | varies |
+| 10 | 1 | gatebreaker | 530 | ~19 |
+| 15 | 1 | gatebreaker | 555 | ~19 |
+
+**Targets:** W1–2 learnable with one T1 archer (&lt;15% fort loss on leaks); W5 boss threatening with 2–3 towers; no-tower fort death ~W3–4 (6–8 grunts + runners).
+
+- **Implemented:** 2026-05-18 — `waves.ts`, `RunScene.spawnWave`, enemy stat tune, `npm run build`, browser W1 @ 390×844.
+
+## DEC-030: Distinct Upgrade + Enemy Combat Behaviors
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:**
+  - **Sharp Arrows:** archer towers only (no trap/tower-wide buff).
+  - **Powder Kegs:** `cannonSplashBonus` scales splash radius from `buildings.stats.splash`; splash deals 45% primary damage in radius.
+  - **Arcane Focus:** magic towers prioritize shield/tank/boss; magic damage ignores shield armor reduction.
+  - **Shield Guard:** 50% damage from archer projectiles only.
+  - **Bat:** `archetype === "flyer"` skips spike traps.
+  - **Bomber:** on fort reach, applies `damageToFort` + 55% bonus explosion (second `applyFortDamage`).
+- **Reasoning:** Closes balancing handoff gaps; upgrade cards and Collection copy now match runtime. Cannon/magic building descriptions aligned.
+- **Deferred:** FEATURE_SPEC permanent upgrades (troop HP, coin gain, reroll) and roguelike rarity weights — see BUG-021, BUG-022.

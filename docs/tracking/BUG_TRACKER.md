@@ -42,7 +42,67 @@ Verification:
 
 ## Active Bugs
 
-_None — playtest fixes 2026-05-18 (BUG-019, BUG-020). See **Fixed Bugs** below._
+**Handoff:** `docs/handoffs/2026-05-18-game-balancing.md` — deferred scope (DEC-030).
+
+---
+
+ID: BUG-021
+Title: FEATURE_SPEC permanent upgrades (troop HP, coin gain, reroll) not in gem shop
+Status: New
+Severity: S3
+Area: Meta / Balance
+Found in: Game balancing pass 2026-05-18
+Owner: Unassigned
+Date opened: 2026-05-18
+Related issue: DEC-030, FEATURE_SPEC.md § Permanent Upgrades
+
+Steps to reproduce:
+1. Open Permanent Upgrades (nav or Home).
+2. Compare offered rows with FEATURE_SPEC list.
+
+Expected:
+Shop includes fort HP, starting coins, tower damage, troop health, coin gain, and upgrade reroll chance.
+
+Actual:
+Only `fortHp`, `startingCoins`, and `towerDamage` exist in `permanentUpgradeDefinitions` (`useGameStore.ts`).
+
+Notes:
+Out of balancing handoff scope; meta UX unchanged per agent brief.
+
+Verification:
+N/A — deferred.
+
+---
+
+ID: BUG-022
+Title: Roguelike upgrade picker treats all six cards with equal weight
+Status: New
+Severity: S4
+Area: Balance / UX
+Found in: Game balancing pass 2026-05-18
+Owner: Unassigned
+Date opened: 2026-05-18
+Related issue: DEC-030
+
+Steps to reproduce:
+1. Clear several waves and open upgrade choice repeatedly.
+2. Observe rarity distribution.
+
+Expected:
+Rarity-weighted rolls (common more frequent than epic) per product spec.
+
+Actual:
+`pickUpgrades()` shuffles all `upgradeDefinitions` equally and takes three.
+
+Notes:
+All six upgrade *effects* are now distinct (DEC-030); weighting is polish.
+
+Verification:
+N/A — deferred.
+
+---
+
+**Previous active sweep:** BUG-019, BUG-020 — see **Fixed Bugs** below.
 
 **Handoff:** `docs/handoffs/2026-05-18-bug-fix.md` (see `LATEST.md`).
 
