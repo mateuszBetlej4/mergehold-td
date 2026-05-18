@@ -3,10 +3,12 @@
 ## Current Production Setup
 
 - **Vercel project:** `mergehold-td`
+- **Production URL:** `https://mergehold-td.vercel.app`
+- **Latest deployment:** `https://mergehold-9eclg093m-mateuszbetlej4s-projects.vercel.app`
 - **Supabase project:** `ASAP-MOB-FC` (`xbfkgvfnmtswygxovgcy`)
 - **Supabase URL:** `https://xbfkgvfnmtswygxovgcy.supabase.co`
 - **Render API target:** `https://mergehold-td-api.onrender.com`
-- **Status:** Frontend deploy in progress from `main`; Supabase schema applied; Render requires API/dashboard access if not already connected.
+- **Status:** Frontend deployed from `main`; Supabase schema applied; Render requires API/dashboard access if not already connected.
 
 ## Initial Deployment
 
@@ -72,3 +74,5 @@ Blueprint deeplink:
 ```text
 https://dashboard.render.com/blueprint/new?repo=https://github.com/mateuszBetlej4/mergehold-td
 ```
+
+Current blocker: the local machine has no `render` CLI, `RENDER_API_KEY` is not set, and Render MCP deployment tools were not exposed in the Codex session. The target `/health` URL currently returns 404, so the Render API service still needs the Blueprint applied or a Render API key provided.
