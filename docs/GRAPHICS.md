@@ -102,7 +102,7 @@ Phaser aim angle: **0 = east (right)**. Each texture’s art was inspected at ro
 | `kenney-tower-cannon` | Up | `+π/2` |
 | `kenney-tower-magic` | Right | `0` |
 | `kenney-enemy-grunt` | Right | `0` |
-| `kenney-enemy-runner` | Up | `+π/2` |
+| `kenney-enemy-runner` | Right | `0` |
 | `kenney-enemy-tank` | Up | `+π/2` |
 | `kenney-enemy-shield` | Up | `+π/2` |
 | `kenney-enemy-boss` | Up | `+π/2` |

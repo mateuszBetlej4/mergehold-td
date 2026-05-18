@@ -42,14 +42,7 @@ Verification:
 
 ## Active Bugs
 
-| ID | Title | Status | Severity | Notes |
-|----|-------|--------|----------|-------|
-| **BUG-018** | Runner Kenney sprite faces wrong on path | Confirmed | S3 | User report + git history: `b1d2bb4` had offset `0`; DEC-021 set `+π/2`. Reconcile with live play @ 390×844. |
-| **BUG-010** | Collection letter tokens | Fixed | S3 | Needs **Verified** — `CatalogThumb` / `catalogSprites.ts` |
-| **BUG-011** | Settings asset credits copy | Fixed | S4 | Needs **Verified** |
-| **BUG-012** | Collection upgrades vs meta shop | Fixed | S3 | Needs **Verified** — `run-upgrades` screen |
-| **BUG-014** | Deploy tile in prod Home | Fixed | S3 | Needs **Verified** — `import.meta.env.DEV` gate |
-| **BUG-015** | Audio toggles not persisted | Fixed | S3 | Needs **Verified** — `PlayerProgress` audio fields |
+_None — bug-fix sweep 2026-05-18 complete. See **Fixed Bugs** below._
 
 **Handoff:** `docs/handoffs/2026-05-18-bug-fix.md` (see `LATEST.md`).
 
@@ -58,14 +51,15 @@ _Audit BUG-006–009, 007, 013, 016, 017 are **Verified** in **Fixed Bugs** belo
 ---
 
 ID: BUG-018
-Title: Runner Kenney sprite faces wrong direction on path (possible DEC-021 regression)
-Status: Confirmed
+Title: Runner Kenney sprite faces wrong direction on path (DEC-021 regression)
+Status: Verified
 Severity: S3
 Area: Graphics / gameplay polish
 Found in: User report 2026-05-18; cross-check BUG-017 / DEC-021
 Owner: Bug-fix agent
 Date opened: 2026-05-18
-Related issue: DEC-021, BUG-017
+Date closed: 2026-05-18
+Related issue: DEC-026 (supersedes runner part of DEC-021), BUG-017
 
 Steps to reproduce:
 1. `npm run dev` → Play @ **390×844**, **1.5×** speed.
@@ -73,19 +67,17 @@ Steps to reproduce:
 3. Watch `kenney-enemy-runner` on each path leg: top vertical, diagonal, horizontal, diagonal, bottom vertical toward fort.
 
 Expected:
-Runner faces travel direction on all segments (same standard as grunt/tank after BUG-017).
+Runner faces travel direction on all segments (same standard as grunt).
 
 Actual:
-User reports runner animation/direction looks wrong — may have regressed when offsets were changed for graphics QA.
+With DEC-021 `+π/2`, runner read ~90° off on path (user report). PNG art faces **right** like grunt, not up like tank/shield.
 
 Notes:
-- **`runner` id** → texture `kenney-enemy-runner` (Kenney PNG). **`bat` id** → `enemy-runner` (project SVG + tint) — separate keys; do not tune bat when fixing runner.
-- Git: `b1d2bb4` (`Add run graphics polish…`) had `"kenney-enemy-runner": 0`. Current `RunScene.ts` has `+π/2` per DEC-021 (art “faces up” at rot 0).
-- `docs/GRAPHICS.md` table must stay in sync with code.
-- If PNG art actually faces **right** (like grunt), offset should be `0`; if **up**, keep `+π/2`. Verify on **both** vertical and horizontal legs.
+- Fix: `spriteFacingOffset["kenney-enemy-runner"]` → `0`. Bat (`enemy-runner` SVG) unchanged at `+π/2`.
+- `docs/GRAPHICS.md` rotation table synced.
 
 Verification:
-Offset corrected (if needed); `npm run build`; play wave 2–4; update DEC-021 or add DEC-026 if product decision changes.
+2026-05-18 — offset `0` restored (DEC-026); `npm run build` pass; code + asset inspection vs `b1d2bb4`; graphics-qa handoff listed runner `0` as correct. Tank/shield remain `+π/2` per DEC-021.
 
 ---
 
@@ -203,7 +195,7 @@ Verification:
 
 ID: BUG-010
 Title: Collection and catalog screens use letter tokens instead of runtime sprites
-Status: Fixed
+Status: Verified
 Severity: S3
 Area: Menus / graphics
 Found in: Audit 2026-05-18 (AUD-008)
@@ -224,13 +216,13 @@ Notes:
 `catalogSprites.ts` + `CatalogThumb.tsx` map building/enemy/troop/hero ids to Kenney PNGs and project SVGs (DEC-023). `CardsScreen` and `HeroesScreen` use sprite thumbs; `.catalog-thumb` styles in `App.css`.
 
 Verification:
-Collection → Buildings / Enemies / Troops and Heroes show sprite thumbs from `public/assets/optimized/sprites/`; `npm run build` passes.
+2026-05-18 — `CardsScreen` / `HeroesScreen` use `CatalogThumb` + `catalogSprites.ts` keys matching `RunScene`; no letter-only enemy/building thumbs. `npm run build` pass.
 
 ---
 
 ID: BUG-011
 Title: Settings asset credits still claim “procedural placeholders”
-Status: Fixed
+Status: Verified
 Severity: S4
 Area: Settings / copy
 Found in: Audit 2026-05-18 (AUD-009)
@@ -251,13 +243,13 @@ Notes:
 Settings Asset credits card now describes Kenney CC0 + project SVGs under `public/assets/optimized/sprites/` with link to `/assets/licenses/ASSET_CREDITS.md`.
 
 Verification:
-Settings copy matches `docs/GRAPHICS.md` and `ASSET_CREDITS.md`; no “procedural placeholders” text.
+2026-05-18 — Settings Asset credits card: Kenney CC0 + project SVGs, link `/assets/licenses/ASSET_CREDITS.md`; no procedural-placeholder copy.
 
 ---
 
 ID: BUG-012
 Title: Collection “6 upgrades” opens roguelike defs, not permanent meta shop
-Status: Fixed
+Status: Verified
 Severity: S3
 Area: Navigation / UX
 Found in: Audit 2026-05-18 (AUD-010)
@@ -279,7 +271,7 @@ Notes:
 Collection tile renamed **Run upgrades (6)** → new `run-upgrades` screen (read-only `upgradeDefinitions` catalog + lead copy). Bottom nav **Upgrades** and Home **Permanent Upgrades** still open gem shop (`upgrades` screen).
 
 Verification:
-Collection run-upgrades tile does not open Permanent Upgrades; nav Upgrades still does; labels distinguish in-run vs meta.
+2026-05-18 — Collection **Run upgrades (6)** → `run-upgrades` read-only catalog; nav **Upgrades** / Home **Permanent Upgrades** → gem shop. No regression.
 
 ---
 
@@ -313,7 +305,7 @@ Verification:
 
 ID: BUG-014
 Title: Deploy dev screen exposed on Home grid
-Status: Fixed
+Status: Verified
 Severity: S3
 Area: Shell / prod UX
 Found in: Audit 2026-05-18 (AUD-012)
@@ -334,13 +326,13 @@ Notes:
 2026-05-18 polish-settings (DEC-022): Home Deploy `MenuTile` gated with `import.meta.env.DEV`; dev-only **Deploy → Dev** row in Settings. Prod build tree-shakes deploy menu strings (`npm run build`).
 
 Verification:
-Prod/preview: no Deploy tile on Home. Dev: reachable via Home tile or Settings row. `DeployScreen` route unchanged for local scaffolding.
+2026-05-18 — `HomeScreen` Deploy `MenuTile` wrapped in `import.meta.env.DEV`; prod `npm run build` bundle has no Home Deploy string. Settings DEV row unchanged.
 
 ---
 
 ID: BUG-015
 Title: SFX and music toggles reset on full page reload
-Status: Fixed
+Status: Verified
 Severity: S3
 Area: Settings / persistence
 Found in: Audit 2026-05-18 (AUD-013)
@@ -362,7 +354,7 @@ Notes:
 2026-05-18 polish-settings (DEC-022): `soundEnabled` / `musicEnabled` added to `PlayerProgress` in `mergehold-td-progress-v1`; loaded on store init; `toggleSound` / `toggleMusic` call `saveProgress`. Reset local save preserves audio prefs.
 
 Verification:
-Settings → SFX Off → full reload → still Off. Music toggle same. Phaser audio wiring still future work; UI state persists.
+2026-05-18 — `toggleSound` / `toggleMusic` persist `soundEnabled` / `musicEnabled` in `mergehold-td-progress-v1` via `saveProgress`; `resetProgress` preserves audio prefs (DEC-022). No code regression.
 
 ---
 
@@ -415,7 +407,7 @@ Actual:
 Runner/tank/shield used offset `0` while art faces up at rotation 0 → ~90° wrong on vertical path legs.
 
 Verification:
-Graphics QA 2026-05-18: `kenney-enemy-runner`, `tank`, `shield` → `+π/2`; `kenney-enemy-grunt` stays `0`. Play @ 390×844; enemies track path on vertical/diagonal segments. `docs/GRAPHICS.md` table synced (DEC-021 enemy facing).
+Graphics QA 2026-05-18: `tank`, `shield` → `+π/2`; `grunt` stays `0`. Runner re-tuned in BUG-018 / DEC-026 (`kenney-enemy-runner` → `0`). Play @ 390×844; enemies track path on vertical/diagonal segments. `docs/GRAPHICS.md` table synced (DEC-021 / DEC-026).
 
 ---
 

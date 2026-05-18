@@ -169,7 +169,7 @@ const spriteFacingOffset: Record<string, number> = {
   "kenney-tower-cannon": Math.PI / 2,
   "kenney-tower-magic": 0,
   "kenney-enemy-grunt": 0,
-  "kenney-enemy-runner": Math.PI / 2,
+  "kenney-enemy-runner": 0,
   "kenney-enemy-tank": Math.PI / 2,
   "kenney-enemy-shield": Math.PI / 2,
   "kenney-enemy-boss": Math.PI / 2,

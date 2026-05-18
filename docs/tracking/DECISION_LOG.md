@@ -143,12 +143,19 @@ Record meaningful product and technical decisions here so future development has
 - **Reasoning:** Fixes misleading unlocks and zero-gem mid-run exits. Completion bonus still rewards full runs that end in fort loss.
 - **Implemented:** 2026-05-18 — `useGameStore.recordWaveClear`, `forfeitRun`, `claimRunRewards`, `runEndSummary`; `RunScene.showUpgradeChoice`; meta + run UI (BUG-006/008/009). Leave/end-run UX: DEC-024 (BUG-007/016).
 
-## DEC-021: Kenney Runner / Tank / Shield Facing Offset
+## DEC-021: Kenney Tank / Shield Facing Offset
+
+- **Date:** 2026-05-18
+- **Status:** Accepted (runner row superseded by DEC-026)
+- **Decision:** Set `spriteFacingOffset` to `+π/2` for `kenney-enemy-tank` and `kenney-enemy-shield` (art faces **up** at Phaser rotation 0). Keep `kenney-enemy-grunt` at `0` (art faces **right**). Boss and SVG bat/bomber keys unchanged at `+π/2`.
+- **Reasoning:** Graphics QA (BUG-017 / AUD-014) found vertical-path segments showed sideways facing when offsets assumed all Kenney PNGs face east. Table in `docs/GRAPHICS.md` updated to match `RunScene.ts`. **Runner** was briefly included here; reverted to `0` in DEC-026 after BUG-018.
+
+## DEC-026: Kenney Runner Faces Right (Offset 0)
 
 - **Date:** 2026-05-18
 - **Status:** Accepted
-- **Decision:** Set `spriteFacingOffset` to `+π/2` for `kenney-enemy-runner`, `kenney-enemy-tank`, and `kenney-enemy-shield` (art faces **up** at Phaser rotation 0). Keep `kenney-enemy-grunt` at `0` (art faces **right**). Boss and SVG bat/bomber keys unchanged at `+π/2`.
-- **Reasoning:** Graphics QA (BUG-017 / AUD-014) found vertical-path segments showed sideways facing when offsets assumed all Kenney PNGs face east. Table in `docs/GRAPHICS.md` updated to match `RunScene.ts`.
+- **Decision:** Set `spriteFacingOffset` for `kenney-enemy-runner` to `0` (PNG art faces **right** at Phaser rotation 0, same as grunt). Do not apply DEC-021 `+π/2` to runner.
+- **Reasoning:** BUG-018 — user report and `b1d2bb4` baseline; runner was wrongly grouped with tank/shield in DEC-021. With `+π/2`, runner read ~90° off on vertical path legs @ 390×844. Bat (`enemy-runner` SVG) unchanged at `+π/2`.
 
 ## DEC-022: Audio Settings In Progress Blob; Deploy Dev-Only
 
