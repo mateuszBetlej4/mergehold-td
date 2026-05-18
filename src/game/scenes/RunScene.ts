@@ -1135,6 +1135,7 @@ export class RunScene extends Phaser.Scene {
     if (!this.waitingToStartWave || this.isChoosingUpgrade || this.isGameOver) return;
 
     this.waitingToStartWave = false;
+    this.wave += 1;
     this.refreshFortShield();
     this.spawnWave();
     this.showToast(`Wave ${this.wave} incoming`);
@@ -1548,7 +1549,6 @@ export class RunScene extends Phaser.Scene {
     this.upgradeOverlay = undefined;
     this.isChoosingUpgrade = false;
     this.syncTimeScale();
-    this.wave += 1;
     this.coins += 30;
     this.showToast(`${upgrade.name} gained — tap Start Wave`);
     this.waitingToStartWave = true;

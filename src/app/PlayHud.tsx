@@ -18,12 +18,15 @@ export function PlayHud() {
     return () => gameBridge.off("state", onState);
   }, []);
 
-  if (!ui || ui.isChoosingUpgrade) return null;
+  if (!ui) return null;
 
-  const nextWave = ui.waitingToStartWave ? ui.wave + 1 : ui.wave;
+  const nextWaveToStart = ui.wave + 1;
 
   return (
-    <div className="play-hud" aria-label="Run controls">
+    <div
+      className={`play-hud ${ui.isChoosingUpgrade ? "play-hud--upgrade" : ""}`}
+      aria-label="Run controls"
+    >
       <header className="play-hud__top">
         <div className="play-hud__controls">
           <button
@@ -74,14 +77,14 @@ export function PlayHud() {
 
       {ui.toast ? <div className="play-hud__toast">{ui.toast}</div> : null}
 
-      <footer className="play-hud__dock">
-        {ui.waitingToStartWave ? (
+      <footer className={`play-hud__dock ${ui.isChoosingUpgrade ? "play-hud__dock--dimmed" : ""}`}>
+        {ui.waitingToStartWave && !ui.isChoosingUpgrade ? (
           <button type="button" className="play-hud__start-wave" onClick={() => gameBridge.emit("startWave")}>
-            Start wave {nextWave}
+            Start wave {nextWaveToStart}
           </button>
         ) : null}
 
-        <div className="play-hud__tabs" role="tablist" aria-label="Build category">
+        <div className="play-hud__tabs" role="tablist" aria-label="Build category" hidden={ui.isChoosingUpgrade}>
           <DockTab
             label="Towers"
             active={ui.dockTab === "towers"}
@@ -94,7 +97,11 @@ export function PlayHud() {
           />
         </div>
 
-        {ui.dockTab === "towers" ? (
+        {ui.isChoosingUpgrade ? (
+          <p className="play-hud__upgrade-hint">Pick an upgrade card</p>
+        ) : null}
+
+        {!ui.isChoosingUpgrade && ui.dockTab === "towers" ? (
           <div className="play-hud__grid play-hud__grid--towers">
             {ui.towers.map((tower) => (
               <button
@@ -118,7 +125,7 @@ export function PlayHud() {
               {ui.abilityReady ? ui.abilityLabel : `${ui.abilityCooldownSec}s`}
             </button>
           </div>
-        ) : (
+        ) : !ui.isChoosingUpgrade && ui.dockTab === "support" ? (
           <div className="play-hud__grid play-hud__grid--support">
             {ui.structs.map((struct) => (
               <button
@@ -139,7 +146,7 @@ export function PlayHud() {
               </button>
             ))}
           </div>
-        )}
+        ) : null}
       </footer>
     </div>
   );
@@ -160,3 +167,5 @@ function DockTab({
     </button>
   );
 }
+
+
