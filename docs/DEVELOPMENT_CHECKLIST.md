@@ -40,11 +40,12 @@
 
 ## Roguelike Upgrade System
 
-- [ ] Upgrade data model.
-- [ ] Upgrade selection between waves.
-- [ ] Three-card UI.
+- [x] Upgrade data model.
+- [x] Upgrade selection between waves.
+- [x] Three-card UI.
+- [x] Basic rarity display.
+- [x] Stackable effects.
 - [ ] Rarity weights.
-- [ ] Stackable effects.
 - [ ] Reroll hook.
 
 ## Content

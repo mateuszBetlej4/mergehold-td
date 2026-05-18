@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { buildingDefinitions } from "../../data/buildings";
 import { enemyDefinitions, type EnemyDefinition } from "../../data/enemies";
+import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
 import { useGameStore } from "../../state/useGameStore";
 
 type Enemy = {
@@ -65,13 +66,19 @@ export class RunScene extends Phaser.Scene {
   private towers: Tower[] = [];
   private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
   private fortHp = 180;
+  private maxFortHp = 180;
   private coins = 150;
   private wave = 1;
   private isGameOver = false;
+  private isChoosingUpgrade = false;
   private selectedTowerIndex = 0;
+  private towerDamageMultiplier = 1;
+  private fireRateMultiplier = 1;
+  private rewardMultiplier = 1;
   private hudText?: Phaser.GameObjects.Text;
   private waveText?: Phaser.GameObjects.Text;
   private toastText?: Phaser.GameObjects.Text;
+  private upgradeOverlay?: Phaser.GameObjects.Container;
   private palette = {
     ground: 0x83a96d,
     path: 0xd9c59f,
@@ -113,6 +120,11 @@ export class RunScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     if (this.isGameOver) return;
+
+    if (this.isChoosingUpgrade) {
+      this.updateHud();
+      return;
+    }
 
     this.moveEnemies(delta);
     this.moveProjectiles(delta);
@@ -235,6 +247,8 @@ export class RunScene extends Phaser.Scene {
   }
 
   private tryBuildOrMerge(x: number, y: number) {
+    if (this.isChoosingUpgrade) return;
+
     if (this.isGameOver) {
       this.scene.restart();
       return;
@@ -252,7 +266,7 @@ export class RunScene extends Phaser.Scene {
       if (this.coins >= 15 && existingTower.tier < 5) {
         this.coins -= 15;
         existingTower.tier += 1;
-        existingTower.damage += 8;
+        existingTower.damage += 8 * this.towerDamageMultiplier;
         existingTower.range += 4;
         existingTower.body.setScale(0.58 + existingTower.tier * 0.05);
         existingTower.badgeBg.setPosition(existingTower.body.x + 19, existingTower.body.y - 18);
@@ -290,7 +304,7 @@ export class RunScene extends Phaser.Scene {
       tier: 1,
       damage: definition.stats.damage,
       range: definition.stats.range,
-      fireRateMs: definition.stats.fireRateMs,
+      fireRateMs: Math.round(definition.stats.fireRateMs * this.fireRateMultiplier),
       lastShotAt: 0,
     });
     this.showToast(`${definition.name} built`);
@@ -310,10 +324,7 @@ export class RunScene extends Phaser.Scene {
 
     this.time.delayedCall(delay + 2800, () => {
       if (this.fortHp > 0) {
-        this.wave += 1;
-        this.coins += 24;
-        this.showToast(`Wave ${this.wave}`);
-        this.spawnWave();
+        this.showUpgradeChoice();
       }
     });
   }
@@ -350,7 +361,7 @@ export class RunScene extends Phaser.Scene {
       hp: definition.hp + this.wave * 6,
       maxHp: definition.hp + this.wave * 6,
       speed: (0.046 + this.wave * 0.0015) * definition.speed,
-      reward: definition.reward,
+      reward: Math.ceil(definition.reward * this.rewardMultiplier),
       damageToFort: Math.ceil(definition.damageToFort * 0.55),
     });
   }
@@ -479,6 +490,8 @@ export class RunScene extends Phaser.Scene {
   }
 
   private selectTower(index: number) {
+    if (this.isChoosingUpgrade) return;
+
     this.selectedTowerIndex = index;
     this.towerPickerButtons.forEach((button, buttonIndex) => {
       button.setStrokeStyle(buttonIndex === index ? 4 : 2, 0xffffff);
@@ -498,5 +511,117 @@ export class RunScene extends Phaser.Scene {
       delay: 1200,
       ease: "Sine.easeIn",
     });
+  }
+
+  private showUpgradeChoice() {
+    if (this.isChoosingUpgrade || this.isGameOver) return;
+
+    this.isChoosingUpgrade = true;
+    const offeredUpgrades = this.pickUpgrades();
+    const overlay = this.add.container(0, 0).setDepth(80);
+    overlay.add(this.add.rectangle(195, 347, 390, 694, 0x17202b, 0.64));
+    overlay.add(this.add.text(195, 150, "Choose an upgrade", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "24px",
+      fontStyle: "bold",
+    }).setOrigin(0.5));
+    overlay.add(this.add.text(195, 181, `Wave ${this.wave} cleared`, {
+      color: "#f2c14e",
+      fontFamily: "Arial",
+      fontSize: "15px",
+      fontStyle: "bold",
+    }).setOrigin(0.5));
+
+    offeredUpgrades.forEach((upgrade, index) => {
+      const y = 247 + index * 106;
+      overlay.add(this.createUpgradeCard(upgrade, 195, y));
+    });
+
+    this.upgradeOverlay = overlay;
+  }
+
+  private createUpgradeCard(upgrade: UpgradeDefinition, x: number, y: number) {
+    const rarityColor = {
+      common: 0xffffff,
+      rare: 0x8fd0ff,
+      epic: 0xcaa8ff,
+    }[upgrade.rarity];
+    const container = this.add.container(x, y);
+    const card = this.add.rectangle(0, 0, 318, 82, rarityColor, 1)
+      .setStrokeStyle(4, 0x216869)
+      .setInteractive({ useHandCursor: true });
+    const title = this.add.text(-136, -26, upgrade.name, {
+      color: "#17202b",
+      fontFamily: "Arial",
+      fontSize: "18px",
+      fontStyle: "bold",
+    });
+    const description = this.add.text(-136, 0, upgrade.description, {
+      color: "#26313a",
+      fontFamily: "Arial",
+      fontSize: "13px",
+      wordWrap: { width: 250 },
+    });
+    const rarity = this.add.text(126, -28, upgrade.rarity.toUpperCase(), {
+      color: "#216869",
+      fontFamily: "Arial",
+      fontSize: "10px",
+      fontStyle: "bold",
+    }).setOrigin(1, 0);
+
+    card.on("pointerdown", () => this.chooseUpgrade(upgrade));
+    container.add([card, title, description, rarity]);
+    return container;
+  }
+
+  private chooseUpgrade(upgrade: UpgradeDefinition) {
+    this.applyUpgrade(upgrade);
+    this.upgradeOverlay?.destroy(true);
+    this.upgradeOverlay = undefined;
+    this.isChoosingUpgrade = false;
+    this.wave += 1;
+    this.coins += 30;
+    this.showToast(`${upgrade.name} gained`);
+    this.spawnWave();
+  }
+
+  private applyUpgrade(upgrade: UpgradeDefinition) {
+    switch (upgrade.target) {
+      case "archer-damage":
+        this.towerDamageMultiplier += upgrade.value;
+        this.towers.forEach((tower) => {
+          tower.damage *= 1 + upgrade.value;
+        });
+        break;
+      case "fire-rate":
+        this.fireRateMultiplier = Math.max(0.55, this.fireRateMultiplier - upgrade.value);
+        this.towers.forEach((tower) => {
+          tower.fireRateMs = Math.max(220, Math.round(tower.fireRateMs * (1 - upgrade.value)));
+        });
+        break;
+      case "fort-hp":
+        this.maxFortHp += upgrade.value;
+        this.fortHp = Math.min(this.maxFortHp, this.fortHp + upgrade.value);
+        break;
+      case "coin-reward":
+        this.rewardMultiplier += upgrade.value;
+        break;
+      case "cannon-splash":
+      case "magic-priority":
+        this.towerDamageMultiplier += upgrade.value * 0.5;
+        this.towers.forEach((tower) => {
+          tower.damage *= 1 + upgrade.value * 0.5;
+        });
+        break;
+      default:
+        this.coins += 25;
+        break;
+    }
+  }
+
+  private pickUpgrades() {
+    const shuffled = Phaser.Utils.Array.Shuffle([...upgradeDefinitions]);
+    return shuffled.slice(0, 3);
   }
 }
