@@ -44,7 +44,10 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <section className="mobile-frame" aria-label="Game app">
+      <section
+        className={`mobile-frame ${activeScreen === "play" ? "is-play-mode" : ""}`}
+        aria-label="Game app"
+      >
         <div className="mobile-topbar">
           <div>
             <span>Mergehold TD</span>

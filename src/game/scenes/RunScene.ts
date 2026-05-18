@@ -113,6 +113,32 @@ const healingShrineDefinition =
 
 const maxFriendlyTroops = 10;
 
+const uiLayout = {
+  hudY: 14,
+  toastY: 52,
+  dockTop: 584,
+  structRowY: 598,
+  towerRowY: 640,
+  chipW: 40,
+  chipH: 34,
+  towerW: 50,
+  towerH: 38,
+};
+
+const structPickerSlots = [
+  { key: "trap", x: 42 },
+  { key: "mill", x: 88 },
+  { key: "barracks", x: 134 },
+  { key: "wall", x: 180 },
+  { key: "shrine", x: 226 },
+] as const;
+
+const towerPickerSlots = [
+  { x: 58 },
+  { x: 126 },
+  { x: 194 },
+];
+
 const trapPadPositions: [number, number][] = [
   [168, 98],
   [72, 218],
@@ -173,15 +199,12 @@ export class RunScene extends Phaser.Scene {
   private fireRateMultiplier = 1;
   private rewardMultiplier = 1;
   private runRewardClaimed = false;
-  private selectedHeroName = "Stone Warden";
-  private selectedMapName = "Greenwatch Pass";
   private selectedHeroRole: "guardian" | "ranger" | "mage" = "guardian";
   private selectedHeroAbility = "Fort Shield";
   private heroCooldownMs = 18000;
   private nextHeroAbilityAt = 0;
   private heroTint = 0x4a5759;
   private hudText?: Phaser.GameObjects.Text;
-  private waveText?: Phaser.GameObjects.Text;
   private toastText?: Phaser.GameObjects.Text;
   private abilityText?: Phaser.GameObjects.Text;
   private abilityButton?: Phaser.GameObjects.Rectangle;
@@ -279,59 +302,35 @@ export class RunScene extends Phaser.Scene {
     graphics.lineStyle(4, this.palette.hud, 0.54);
     graphics.strokePath();
 
-    this.add.image(195, 584, "fort").setScale(0.86).setDepth(12);
-    this.add.text(195, 623, "Protect the keep", {
-      color: "#fff7da",
-      fontFamily: "Arial",
-      fontSize: "14px",
-      fontStyle: "bold",
-      stroke: "#17202b",
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(20);
-    this.add.text(195, 681, this.selectedMapName, {
-      color: "#fff7da",
-      fontFamily: "Arial",
-      fontSize: "12px",
-      fontStyle: "bold",
-      stroke: "#17202b",
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(20);
+    this.add.image(195, 548, "fort").setScale(0.8).setDepth(12);
   }
 
   private drawHud() {
-    this.add.rectangle(195, 20, 360, 34, this.palette.hud, 0.82).setOrigin(0.5);
-    this.hudText = this.add.text(195, 20, "", {
-      color: "#ffffff",
+    this.add.rectangle(195, uiLayout.hudY, 374, 32, this.palette.hud, 0.9).setOrigin(0.5).setDepth(40);
+    this.hudText = this.add.text(195, uiLayout.hudY, "", {
+      color: "#f7f2e8",
       fontFamily: "Arial",
-      fontSize: "14px",
+      fontSize: "12px",
       fontStyle: "bold",
-    }).setOrigin(0.5);
-    this.waveText = this.add.text(195, 58, "Wave 1", {
-      color: "#17202b",
+    }).setOrigin(0.5).setDepth(41);
+    this.toastText = this.add.text(195, uiLayout.toastY, "", {
+      color: "#f7f2e8",
       fontFamily: "Arial",
-      fontSize: "18px",
-      fontStyle: "bold",
-      backgroundColor: "#f2c14e",
-      padding: { x: 14, y: 5 },
-    }).setOrigin(0.5).setDepth(40);
-    this.toastText = this.add.text(195, 92, "", {
-      color: "#ffffff",
-      fontFamily: "Arial",
-      fontSize: "14px",
+      fontSize: "11px",
       fontStyle: "bold",
       backgroundColor: "#216869",
-      padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(40).setAlpha(0);
+      padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setDepth(41).setAlpha(0);
   }
 
   private createRunControls() {
     this.pauseButton = this.add
-      .rectangle(48, 58, 50, 30, this.palette.hud, 0.92)
-      .setStrokeStyle(2, 0xffffff)
+      .rectangle(28, uiLayout.hudY, 34, 28, this.palette.hud, 0.95)
+      .setStrokeStyle(2, 0xffffff, 0.7)
       .setDepth(45)
       .setInteractive({ useHandCursor: true });
     this.pauseButtonText = this.add
-      .text(48, 58, "Pause", {
+      .text(28, uiLayout.hudY, "II", {
         color: "#ffffff",
         fontFamily: "Arial",
         fontSize: "11px",
@@ -341,15 +340,15 @@ export class RunScene extends Phaser.Scene {
       .setDepth(46);
 
     this.speedButton = this.add
-      .rectangle(104, 58, 50, 30, this.palette.hud, 0.92)
-      .setStrokeStyle(2, 0xffffff)
+      .rectangle(64, uiLayout.hudY, 34, 28, this.palette.hud, 0.95)
+      .setStrokeStyle(2, 0xffffff, 0.7)
       .setDepth(45)
       .setInteractive({ useHandCursor: true });
     this.speedButtonText = this.add
-      .text(104, 58, "1x", {
+      .text(64, uiLayout.hudY, "1x", {
         color: "#ffffff",
         fontFamily: "Arial",
-        fontSize: "11px",
+        fontSize: "10px",
         fontStyle: "bold",
       })
       .setOrigin(0.5)
@@ -381,16 +380,16 @@ export class RunScene extends Phaser.Scene {
     );
 
     this.startWaveButton = this.add
-      .rectangle(195, 118, 132, 34, 0x216869, 0.95)
-      .setStrokeStyle(2, 0xffffff)
+      .rectangle(195, uiLayout.toastY, 118, 28, 0x216869, 0.96)
+      .setStrokeStyle(2, 0xffffff, 0.85)
       .setDepth(45)
       .setVisible(false)
       .setInteractive({ useHandCursor: true });
     this.startWaveButtonText = this.add
-      .text(195, 118, "Start Wave", {
+      .text(195, uiLayout.toastY, "Start wave", {
         color: "#ffffff",
         fontFamily: "Arial",
-        fontSize: "13px",
+        fontSize: "11px",
         fontStyle: "bold",
       })
       .setOrigin(0.5)
@@ -449,7 +448,7 @@ export class RunScene extends Phaser.Scene {
   private updateRunControls() {
     if (!this.pauseButtonText || !this.speedButtonText || !this.pauseButton || !this.speedButton) return;
 
-    this.pauseButtonText.setText(this.isPaused ? "Play" : "Pause");
+    this.pauseButtonText.setText(this.isPaused ? ">" : "II");
     this.pauseButton.setFillStyle(this.isPaused ? 0x216869 : this.palette.hud, 0.92);
     this.speedButtonText.setText(`${this.runSpeed}x`);
     this.speedButton.setAlpha(this.isPaused || this.isChoosingUpgrade ? 0.45 : 1);
@@ -498,145 +497,101 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createTowerPicker() {
+    this.add.rectangle(195, uiLayout.dockTop + 52, 390, 110, this.palette.hud, 0.94).setDepth(28);
+
+    structPickerSlots.forEach((slot) => this.createStructPickerChip(slot.key, slot.x));
+
     starterTowers.forEach((tower, index) => {
-      const x = 76 + index * 72;
-      const button = this.add.rectangle(x, 656, 58, 44, tower.color)
-        .setStrokeStyle(index === this.selectedTowerIndex ? 4 : 2, 0xffffff)
+      const { x } = towerPickerSlots[index] ?? towerPickerSlots[0];
+      const button = this.add
+        .rectangle(x, uiLayout.towerRowY, uiLayout.towerW, uiLayout.towerH, tower.color)
+        .setStrokeStyle(index === this.selectedTowerIndex ? 3 : 1, 0xffffff, index === this.selectedTowerIndex ? 1 : 0.65)
         .setDepth(30)
         .setInteractive({ useHandCursor: true });
       this.towerPickerButtons.push(button);
-      this.add.image(x - 13, 656, towerAssetKeys[tower.id]).setScale(0.26).setDepth(31);
-      this.add.text(x, 656, `${tower.icon} $${tower.baseCost}`, {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "13px",
-        fontStyle: "bold",
-      }).setOrigin(0.5).setDepth(32);
+      this.add.image(x, uiLayout.towerRowY - 1, towerAssetKeys[tower.id]).setScale(0.22).setDepth(31);
+      this.add
+        .text(x, uiLayout.towerRowY + 14, `$${tower.baseCost}`, {
+          color: "#e8edf2",
+          fontFamily: "Arial",
+          fontSize: "9px",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5)
+        .setDepth(32);
 
       button.on("pointerdown", () => {
         this.selectTower(index);
       });
     });
 
-    const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
-    this.trapPickerButton = this.add
-      .rectangle(40, 612, 46, 34, trapUnlocked ? spikeTrapDefinition.color : 0x4b5563)
-      .setStrokeStyle(this.selectedBuildMode === "trap" ? 4 : 2, 0xffffff)
+    this.abilityButton = this.add
+      .rectangle(338, uiLayout.towerRowY, 52, uiLayout.towerH, this.heroTint)
+      .setStrokeStyle(2, 0xffffff, 0.85)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add.image(22, 612, "spike-trap").setScale(0.28).setDepth(31).setAlpha(trapUnlocked ? 1 : 0.45);
-    this.add
-      .text(40, 612, trapUnlocked ? `${spikeTrapDefinition.icon} $${spikeTrapDefinition.baseCost}` : "W2", {
+    this.abilityText = this.add
+      .text(338, uiLayout.towerRowY, "Ability", {
         color: "#ffffff",
         fontFamily: "Arial",
-        fontSize: "11px",
+        fontSize: "9px",
         fontStyle: "bold",
+        align: "center",
+        wordWrap: { width: 48 },
       })
       .setOrigin(0.5)
-      .setDepth(32);
-
-    this.trapPickerButton.on("pointerdown", () => this.selectTrap());
-
-    const millUnlocked = this.wave >= coinMillDefinition.unlockWave;
-    this.coinMillPickerButton = this.add
-      .rectangle(88, 612, 46, 34, millUnlocked ? coinMillDefinition.color : 0x4b5563)
-      .setStrokeStyle(this.selectedBuildMode === "mill" ? 4 : 2, 0xffffff)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.add.image(70, 612, "coin-mill").setScale(0.28).setDepth(31).setAlpha(millUnlocked ? 1 : 0.45);
-    this.add
-      .text(88, 612, millUnlocked ? `${coinMillDefinition.icon} $${coinMillDefinition.baseCost}` : "W3", {
-        color: "#17202b",
-        fontFamily: "Arial",
-        fontSize: "11px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(32);
-
-    this.coinMillPickerButton.on("pointerdown", () => this.selectCoinMill());
-
-    const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
-    this.barracksPickerButton = this.add
-      .rectangle(136, 612, 46, 34, barracksUnlocked ? barracksDefinition.color : 0x4b5563)
-      .setStrokeStyle(this.selectedBuildMode === "barracks" ? 4 : 2, 0xffffff)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.add.image(118, 612, "barracks").setScale(0.28).setDepth(31).setAlpha(barracksUnlocked ? 1 : 0.45);
-    this.add
-      .text(136, 612, barracksUnlocked ? `${barracksDefinition.icon} $${barracksDefinition.baseCost}` : "W4", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "11px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(32);
-
-    this.barracksPickerButton.on("pointerdown", () => this.selectBarracks());
-
-    const wallUnlocked = this.wave >= stoneWallDefinition.unlockWave;
-    this.wallPickerButton = this.add
-      .rectangle(184, 612, 46, 34, wallUnlocked ? stoneWallDefinition.color : 0x4b5563)
-      .setStrokeStyle(this.selectedBuildMode === "wall" ? 4 : 2, 0xffffff)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.add.image(166, 612, "stone-wall").setScale(0.28).setDepth(31).setAlpha(wallUnlocked ? 1 : 0.45);
-    this.add
-      .text(184, 612, wallUnlocked ? `${stoneWallDefinition.icon} $${stoneWallDefinition.baseCost}` : "W2", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "11px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(32);
-    this.wallPickerButton.on("pointerdown", () => this.selectStoneWall());
-
-    const shrineUnlocked = this.wave >= healingShrineDefinition.unlockWave;
-    this.shrinePickerButton = this.add
-      .rectangle(232, 612, 46, 34, shrineUnlocked ? healingShrineDefinition.color : 0x4b5563)
-      .setStrokeStyle(this.selectedBuildMode === "shrine" ? 4 : 2, 0xffffff)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.add.image(214, 612, "healing-shrine").setScale(0.28).setDepth(31).setAlpha(shrineUnlocked ? 1 : 0.45);
-    this.add
-      .text(232, 612, shrineUnlocked ? `${healingShrineDefinition.icon} $${healingShrineDefinition.baseCost}` : "W5", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "11px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(32);
-    this.shrinePickerButton.on("pointerdown", () => this.selectHealingShrine());
-
-    this.abilityButton = this.add.rectangle(319, 656, 80, 44, this.heroTint)
-      .setStrokeStyle(3, 0xffffff)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.abilityText = this.add.text(319, 656, "Ability", {
-      color: "#ffffff",
-      fontFamily: "Arial",
-      fontSize: "12px",
-      fontStyle: "bold",
-      align: "center",
-      wordWrap: { width: 70 },
-    }).setOrigin(0.5).setDepth(31);
+      .setDepth(31);
 
     this.abilityButton.on("pointerdown", () => this.useHeroAbility());
   }
 
+  private createStructPickerChip(kind: (typeof structPickerSlots)[number]["key"], x: number) {
+    const config = {
+      trap: { def: spikeTrapDefinition, texture: "spike-trap", mode: "trap" as const },
+      mill: { def: coinMillDefinition, texture: "coin-mill", mode: "mill" as const },
+      barracks: { def: barracksDefinition, texture: "barracks", mode: "barracks" as const },
+      wall: { def: stoneWallDefinition, texture: "stone-wall", mode: "wall" as const },
+      shrine: { def: healingShrineDefinition, texture: "healing-shrine", mode: "shrine" as const },
+    }[kind];
+    const unlocked = this.wave >= config.def.unlockWave;
+    const selected = this.selectedBuildMode === config.mode;
+    const button = this.add
+      .rectangle(x, uiLayout.structRowY, uiLayout.chipW, uiLayout.chipH, unlocked ? config.def.color : 0x4b5563)
+      .setStrokeStyle(selected ? 3 : 1, 0xffffff, selected ? 1 : 0.55)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .image(x, uiLayout.structRowY - 2, config.texture)
+      .setScale(0.2)
+      .setDepth(31)
+      .setAlpha(unlocked ? 1 : 0.4);
+    this.add
+      .text(x, uiLayout.structRowY + 13, unlocked ? `$${config.def.baseCost}` : String(config.def.unlockWave), {
+        color: unlocked ? "#e8edf2" : "#cbd5e1",
+        fontFamily: "Arial",
+        fontSize: "8px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+
+    if (kind === "trap") this.trapPickerButton = button;
+    if (kind === "mill") this.coinMillPickerButton = button;
+    if (kind === "barracks") this.barracksPickerButton = button;
+    if (kind === "wall") this.wallPickerButton = button;
+    if (kind === "shrine") this.shrinePickerButton = button;
+
+    button.on("pointerdown", () => {
+      if (config.mode === "trap") this.selectTrap();
+      if (config.mode === "mill") this.selectCoinMill();
+      if (config.mode === "barracks") this.selectBarracks();
+      if (config.mode === "wall") this.selectStoneWall();
+      if (config.mode === "shrine") this.selectHealingShrine();
+    });
+  }
+
   private createHero() {
-    this.add.image(195, 530, "hero-guardian").setScale(0.48).setTint(this.heroTint).setDepth(14);
-    this.add.text(195, 492, this.selectedHeroName, {
-      color: "#ffffff",
-      fontFamily: "Arial",
-      fontSize: "12px",
-      fontStyle: "bold",
-      stroke: "#17202b",
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(20);
+    this.add.image(195, 508, "hero-guardian").setScale(0.44).setTint(this.heroTint).setDepth(14);
   }
 
   private tryBuildOrMerge(x: number, y: number) {
@@ -1485,9 +1440,8 @@ export class RunScene extends Phaser.Scene {
     });
 
     if (!this.hudText) return;
-    const shieldLabel = this.fortShieldMax > 0 ? `  Shield ${this.fortShieldRemaining}` : "";
-    this.hudText.setText(`HP ${this.fortHp}${shieldLabel}   Wave ${this.wave}   Coins ${this.coins}`);
-    this.waveText?.setText(`Wave ${this.wave}`);
+    const shieldLabel = this.fortShieldMax > 0 ? `  ·  ${this.fortShieldRemaining} shield` : "";
+    this.hudText.setText(`Wave ${this.wave}  ·  ${this.fortHp} HP${shieldLabel}  ·  $${this.coins}`);
     this.updateAbilityButton();
 
     if (this.fortHp <= 0 && !this.isGameOver) {
@@ -1520,7 +1474,8 @@ export class RunScene extends Phaser.Scene {
     this.selectedBuildMode = "tower";
     this.selectedTowerIndex = index;
     this.towerPickerButtons.forEach((button, buttonIndex) => {
-      button.setStrokeStyle(buttonIndex === index ? 4 : 2, 0xffffff);
+      const selected = buttonIndex === index;
+      button.setStrokeStyle(selected ? 3 : 1, 0xffffff, selected ? 1 : 0.65);
     });
     this.clearSecondaryPickerSelection();
     this.showToast(`${starterTowers[index]?.name ?? "Tower"} selected`);
@@ -1537,7 +1492,7 @@ export class RunScene extends Phaser.Scene {
     this.selectedBuildMode = "trap";
     this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
     this.clearSecondaryPickerSelection();
-    this.trapPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.trapPickerButton?.setStrokeStyle(3, 0xffffff, 1);
     this.showToast("Tap a trap pad on the path");
   }
 
@@ -1552,7 +1507,7 @@ export class RunScene extends Phaser.Scene {
     this.selectedBuildMode = "mill";
     this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
     this.clearSecondaryPickerSelection();
-    this.coinMillPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.coinMillPickerButton?.setStrokeStyle(3, 0xffffff, 1);
     this.showToast("Tap a build pad for coin mill");
   }
 
@@ -1567,7 +1522,7 @@ export class RunScene extends Phaser.Scene {
     this.selectedBuildMode = "barracks";
     this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
     this.clearSecondaryPickerSelection();
-    this.barracksPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.barracksPickerButton?.setStrokeStyle(3, 0xffffff, 1);
     this.showToast("Tap a build pad for barracks");
   }
 
@@ -1582,7 +1537,7 @@ export class RunScene extends Phaser.Scene {
     this.selectedBuildMode = "wall";
     this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
     this.clearSecondaryPickerSelection();
-    this.wallPickerButton?.setStrokeStyle(4, 0xffffff);
+    this.wallPickerButton?.setStrokeStyle(3, 0xffffff, 1);
     this.showToast("Tap a build pad for stone wall");
   }
 
@@ -1597,16 +1552,16 @@ export class RunScene extends Phaser.Scene {
     this.selectedBuildMode = "shrine";
     this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
     this.clearSecondaryPickerSelection();
-    this.shrinePickerButton?.setStrokeStyle(4, 0xffffff);
+    this.shrinePickerButton?.setStrokeStyle(3, 0xffffff, 1);
     this.showToast("Tap a build pad for healing shrine");
   }
 
   private clearSecondaryPickerSelection() {
-    this.trapPickerButton?.setStrokeStyle(2, 0xffffff);
-    this.coinMillPickerButton?.setStrokeStyle(2, 0xffffff);
-    this.barracksPickerButton?.setStrokeStyle(2, 0xffffff);
-    this.wallPickerButton?.setStrokeStyle(2, 0xffffff);
-    this.shrinePickerButton?.setStrokeStyle(2, 0xffffff);
+    this.trapPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
+    this.coinMillPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
+    this.barracksPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
+    this.wallPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
+    this.shrinePickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
   }
 
   private showToast(message: string) {
@@ -1880,11 +1835,9 @@ export class RunScene extends Phaser.Scene {
     const selectedHero = heroDefinitions.find((hero) => hero.id === selectedHeroId) ?? heroDefinitions[0];
     const selectedMap = mapDefinitions.find((map) => map.id === selectedMapId) ?? mapDefinitions[0];
 
-    this.selectedHeroName = selectedHero.name;
     this.selectedHeroRole = selectedHero.role;
     this.selectedHeroAbility = selectedHero.ability;
     this.heroCooldownMs = selectedHero.cooldownSeconds * 1000;
-    this.selectedMapName = selectedMap.name;
     this.heroTint = selectedHero.color;
     this.palette = {
       ground: parseHexColor(selectedMap.palette.ground, 0x83a96d),
