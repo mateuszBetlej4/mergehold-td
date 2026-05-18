@@ -19,6 +19,7 @@
 
 - [x] Mobile portrait canvas.
 - [x] Fort/core entity.
+- [x] Hero ability button.
 - [x] Enemy path.
 - [x] Enemy spawn timer.
 - [x] Enemy reaches fort and deals damage.
@@ -67,7 +68,9 @@
 - [x] Local save.
 - [x] Permanent upgrade menu.
 - [x] Hero selection.
+- [x] Hero loadout affects gameplay.
 - [x] Map selection.
+- [x] Map loadout affects gameplay.
 - [x] Unlock conditions.
 - [x] Reset save in settings.
 

@@ -80,10 +80,16 @@ export class RunScene extends Phaser.Scene {
   private runRewardClaimed = false;
   private selectedHeroName = "Stone Warden";
   private selectedMapName = "Greenwatch Pass";
+  private selectedHeroRole: "guardian" | "ranger" | "mage" = "guardian";
+  private selectedHeroAbility = "Fort Shield";
+  private heroCooldownMs = 18000;
+  private nextHeroAbilityAt = 0;
   private heroTint = 0x4a5759;
   private hudText?: Phaser.GameObjects.Text;
   private waveText?: Phaser.GameObjects.Text;
   private toastText?: Phaser.GameObjects.Text;
+  private abilityText?: Phaser.GameObjects.Text;
+  private abilityButton?: Phaser.GameObjects.Rectangle;
   private upgradeOverlay?: Phaser.GameObjects.Container;
   private palette = {
     ground: 0x83a96d,
@@ -249,12 +255,20 @@ export class RunScene extends Phaser.Scene {
       });
     });
 
-    this.add.text(306, 656, "Tap slot", {
-      color: "#17202b",
+    this.abilityButton = this.add.rectangle(319, 656, 80, 44, this.heroTint)
+      .setStrokeStyle(3, 0xffffff)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.abilityText = this.add.text(319, 656, "Ability", {
+      color: "#ffffff",
       fontFamily: "Arial",
-      fontSize: "13px",
+      fontSize: "12px",
       fontStyle: "bold",
-    }).setOrigin(0.5);
+      align: "center",
+      wordWrap: { width: 70 },
+    }).setOrigin(0.5).setDepth(31);
+
+    this.abilityButton.on("pointerdown", () => this.useHeroAbility());
   }
 
   private createHero() {
@@ -488,6 +502,7 @@ export class RunScene extends Phaser.Scene {
     if (!this.hudText) return;
     this.hudText.setText(`HP ${this.fortHp}   Wave ${this.wave}   Coins ${this.coins}`);
     this.waveText?.setText(`Wave ${this.wave}`);
+    this.updateAbilityButton();
 
     if (this.fortHp <= 0 && !this.isGameOver) {
       this.isGameOver = true;
@@ -534,6 +549,83 @@ export class RunScene extends Phaser.Scene {
       duration: 450,
       delay: 1200,
       ease: "Sine.easeIn",
+    });
+  }
+
+  private updateAbilityButton() {
+    if (!this.abilityText || !this.abilityButton) return;
+
+    const remainingMs = this.nextHeroAbilityAt - this.time.now;
+    if (remainingMs > 0) {
+      this.abilityText.setText(`${Math.ceil(remainingMs / 1000)}s`);
+      this.abilityButton.setFillStyle(0x4b5563, 0.88);
+      return;
+    }
+
+    this.abilityText.setText(this.selectedHeroAbility);
+    this.abilityButton.setFillStyle(this.heroTint, 1);
+  }
+
+  private useHeroAbility() {
+    if (this.isGameOver || this.isChoosingUpgrade) return;
+
+    if (this.time.now < this.nextHeroAbilityAt) {
+      this.showToast("Hero ability is cooling down");
+      return;
+    }
+
+    this.nextHeroAbilityAt = this.time.now + this.heroCooldownMs;
+
+    if (this.selectedHeroRole === "guardian") {
+      this.fortHp = Math.min(this.maxFortHp, this.fortHp + 55);
+      this.flashCircle(195, 584, 92, 0xf2c14e);
+      this.showToast("Fort shield restored HP");
+      return;
+    }
+
+    if (this.selectedHeroRole === "ranger") {
+      const targets = [...this.enemies]
+        .sort((a, b) => b.hp - a.hp)
+        .slice(0, 3);
+      targets.forEach((enemy) => {
+        this.damageEnemy(enemy, 72);
+        const tracer = this.add.line(0, 0, 195, 530, enemy.body.x, enemy.body.y, 0xf2c14e, 0.85).setOrigin(0).setDepth(50);
+        this.tweens.add({ targets: tracer, alpha: 0, duration: 260, onComplete: () => tracer.destroy() });
+      });
+      this.showToast("Piercing volley fired");
+      return;
+    }
+
+    this.enemies.forEach((enemy) => this.damageEnemy(enemy, 46));
+    this.flashCircle(195, 326, 170, 0xb85c38);
+    this.showToast("Meteor sigil burned the lane");
+  }
+
+  private damageEnemy(enemy: Enemy, damage: number) {
+    if (!enemy.body.active) return;
+
+    enemy.hp -= damage;
+    enemy.body.setTintFill(0xffffff);
+    this.time.delayedCall(80, () => {
+      if (enemy.body.active) enemy.body.clearTint();
+    });
+
+    if (enemy.hp <= 0) {
+      this.coins += enemy.reward;
+      enemy.body.destroy();
+      enemy.hpBar.destroy();
+    }
+  }
+
+  private flashCircle(x: number, y: number, radius: number, color: number) {
+    const circle = this.add.circle(x, y, radius, color, 0.22).setDepth(49);
+    this.tweens.add({
+      targets: circle,
+      alpha: 0,
+      scale: 1.2,
+      duration: 360,
+      ease: "Sine.easeOut",
+      onComplete: () => circle.destroy(),
     });
   }
 
@@ -655,6 +747,9 @@ export class RunScene extends Phaser.Scene {
     const selectedMap = mapDefinitions.find((map) => map.id === selectedMapId) ?? mapDefinitions[0];
 
     this.selectedHeroName = selectedHero.name;
+    this.selectedHeroRole = selectedHero.role;
+    this.selectedHeroAbility = selectedHero.ability;
+    this.heroCooldownMs = selectedHero.cooldownSeconds * 1000;
     this.selectedMapName = selectedMap.name;
     this.heroTint = selectedHero.color;
     this.palette = {
