@@ -23,6 +23,7 @@ import { heroDefinitions } from "../data/heroes";
 import { mapDefinitions } from "../data/maps";
 import { troopDefinitions } from "../data/troops";
 import { GameCanvas } from "../game/GameCanvas";
+import { PlayHud } from "./PlayHud";
 import {
   permanentUpgradeDefinitions,
   type AppScreen,
@@ -203,6 +204,7 @@ function PlayScreen() {
   return (
     <section className="play-screen">
       <GameCanvas />
+      <PlayHud />
     </section>
   );
 }

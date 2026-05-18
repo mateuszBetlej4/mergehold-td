@@ -6,6 +6,12 @@ import { mapDefinitions } from "../../data/maps";
 import { troopDefinitions, type TroopDefinition } from "../../data/troops";
 import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
 import { useGameStore } from "../../state/useGameStore";
+import {
+  gameBridge,
+  type RunBuildMode,
+  type RunDockTab,
+  type RunUiStruct,
+} from "../gameBridge";
 
 type Enemy = {
   body: Phaser.GameObjects.Image;
@@ -92,11 +98,11 @@ type FriendlyTroop = {
 };
 
 const path = [
-  new Phaser.Math.Vector2(195, 38),
-  new Phaser.Math.Vector2(195, 132),
-  new Phaser.Math.Vector2(96, 236),
-  new Phaser.Math.Vector2(286, 346),
-  new Phaser.Math.Vector2(195, 504),
+  new Phaser.Math.Vector2(195, 28),
+  new Phaser.Math.Vector2(195, 108),
+  new Phaser.Math.Vector2(96, 200),
+  new Phaser.Math.Vector2(286, 300),
+  new Phaser.Math.Vector2(195, 448),
 ];
 
 const starterTowers = buildingDefinitions.filter((building) => building.role === "tower").slice(0, 3);
@@ -113,38 +119,12 @@ const healingShrineDefinition =
 
 const maxFriendlyTroops = 10;
 
-const uiLayout = {
-  hudY: 14,
-  toastY: 52,
-  dockTop: 584,
-  structRowY: 598,
-  towerRowY: 640,
-  chipW: 40,
-  chipH: 34,
-  towerW: 50,
-  towerH: 38,
-};
-
-const structPickerSlots = [
-  { key: "trap", x: 42 },
-  { key: "mill", x: 88 },
-  { key: "barracks", x: 134 },
-  { key: "wall", x: 180 },
-  { key: "shrine", x: 226 },
-] as const;
-
-const towerPickerSlots = [
-  { x: 58 },
-  { x: 126 },
-  { x: 194 },
-];
-
 const trapPadPositions: [number, number][] = [
-  [168, 98],
-  [72, 218],
-  [318, 328],
-  [248, 418],
-  [168, 468],
+  [168, 82],
+  [72, 188],
+  [318, 288],
+  [248, 372],
+  [168, 418],
 ];
 
 const towerAssetKeys: Record<string, string> = {
@@ -175,13 +155,9 @@ export class RunScene extends Phaser.Scene {
   private stoneWalls: StoneWall[] = [];
   private healingShrines: HealingShrine[] = [];
   private friendlyTroops: FriendlyTroop[] = [];
-  private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
-  private trapPickerButton?: Phaser.GameObjects.Rectangle;
-  private barracksPickerButton?: Phaser.GameObjects.Rectangle;
-  private coinMillPickerButton?: Phaser.GameObjects.Rectangle;
-  private wallPickerButton?: Phaser.GameObjects.Rectangle;
-  private shrinePickerButton?: Phaser.GameObjects.Rectangle;
-  private selectedBuildMode: "tower" | "trap" | "barracks" | "mill" | "wall" | "shrine" = "tower";
+  private selectedBuildMode: RunBuildMode = "tower";
+  private dockTab: RunDockTab = "towers";
+  private toastMessage = "";
   private fortHp = 180;
   private maxFortHp = 180;
   private fortShieldMax = 0;
@@ -204,16 +180,6 @@ export class RunScene extends Phaser.Scene {
   private heroCooldownMs = 18000;
   private nextHeroAbilityAt = 0;
   private heroTint = 0x4a5759;
-  private hudText?: Phaser.GameObjects.Text;
-  private toastText?: Phaser.GameObjects.Text;
-  private abilityText?: Phaser.GameObjects.Text;
-  private abilityButton?: Phaser.GameObjects.Rectangle;
-  private pauseButton?: Phaser.GameObjects.Rectangle;
-  private pauseButtonText?: Phaser.GameObjects.Text;
-  private speedButton?: Phaser.GameObjects.Rectangle;
-  private speedButtonText?: Phaser.GameObjects.Text;
-  private startWaveButton?: Phaser.GameObjects.Rectangle;
-  private startWaveButtonText?: Phaser.GameObjects.Text;
   private upgradeOverlay?: Phaser.GameObjects.Container;
   private palette = {
     ground: 0x83a96d,
@@ -248,14 +214,13 @@ export class RunScene extends Phaser.Scene {
   create() {
     this.applyLoadout();
     this.drawMap();
-    this.drawHud();
-    this.createRunControls();
+    this.bindGameBridge();
     this.syncTimeScale();
     this.createBuildSlots();
     this.createTrapSlots();
-    this.createTowerPicker();
     this.createHero();
-    this.showToast("Tap a build pad to place a tower");
+    this.publishRunUiState();
+    this.showToast("Pick a tower, then tap a + pad");
     this.spawnWave();
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -268,7 +233,6 @@ export class RunScene extends Phaser.Scene {
 
     if (this.isChoosingUpgrade || this.isPaused) {
       this.updateHud();
-      this.updateRunControls();
       return;
     }
 
@@ -281,7 +245,6 @@ export class RunScene extends Phaser.Scene {
     this.moveProjectiles(delta);
     this.towers.forEach((tower) => this.shootNearestEnemy(tower, time));
     this.updateHud();
-    this.updateRunControls();
   }
 
   private drawMap() {
@@ -302,112 +265,103 @@ export class RunScene extends Phaser.Scene {
     graphics.lineStyle(4, this.palette.hud, 0.54);
     graphics.strokePath();
 
-    this.add.image(195, 548, "fort").setScale(0.8).setDepth(12);
+    this.add.image(195, 500, "fort").setScale(0.78).setDepth(12);
   }
 
-  private drawHud() {
-    this.add.rectangle(195, uiLayout.hudY, 374, 32, this.palette.hud, 0.9).setOrigin(0.5).setDepth(40);
-    this.hudText = this.add.text(195, uiLayout.hudY, "", {
-      color: "#f7f2e8",
-      fontFamily: "Arial",
-      fontSize: "12px",
-      fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(41);
-    this.toastText = this.add.text(195, uiLayout.toastY, "", {
-      color: "#f7f2e8",
-      fontFamily: "Arial",
-      fontSize: "11px",
-      fontStyle: "bold",
-      backgroundColor: "#216869",
-      padding: { x: 10, y: 4 },
-    }).setOrigin(0.5).setDepth(41).setAlpha(0);
+  private bindGameBridge() {
+    const onTogglePause = () => this.togglePause();
+    const onToggleSpeed = () => this.toggleRunSpeed();
+    const onStartWave = () => this.beginNextWave();
+    const onSetDockTab = (tab: unknown) => {
+      if (tab !== "towers" && tab !== "support") return;
+      this.dockTab = tab as RunDockTab;
+      if (tab === "towers") {
+        this.selectedBuildMode = "tower";
+      }
+      this.publishRunUiState();
+    };
+    const onSelectTower = (index: unknown) => this.selectTower(Number(index));
+    const onSelectStruct = (mode: unknown) => {
+      if (typeof mode !== "string") return;
+      if (mode === "trap") this.selectTrap();
+      if (mode === "mill") this.selectCoinMill();
+      if (mode === "barracks") this.selectBarracks();
+      if (mode === "wall") this.selectStoneWall();
+      if (mode === "shrine") this.selectHealingShrine();
+    };
+    const onUseAbility = () => this.useHeroAbility();
+
+    gameBridge.on("togglePause", onTogglePause);
+    gameBridge.on("toggleSpeed", onToggleSpeed);
+    gameBridge.on("startWave", onStartWave);
+    gameBridge.on("setDockTab", onSetDockTab);
+    gameBridge.on("selectTower", onSelectTower);
+    gameBridge.on("selectStruct", onSelectStruct);
+    gameBridge.on("useAbility", onUseAbility);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      gameBridge.off("togglePause", onTogglePause);
+      gameBridge.off("toggleSpeed", onToggleSpeed);
+      gameBridge.off("startWave", onStartWave);
+      gameBridge.off("setDockTab", onSetDockTab);
+      gameBridge.off("selectTower", onSelectTower);
+      gameBridge.off("selectStruct", onSelectStruct);
+      gameBridge.off("useAbility", onUseAbility);
+    });
   }
 
-  private createRunControls() {
-    this.pauseButton = this.add
-      .rectangle(28, uiLayout.hudY, 34, 28, this.palette.hud, 0.95)
-      .setStrokeStyle(2, 0xffffff, 0.7)
-      .setDepth(45)
-      .setInteractive({ useHandCursor: true });
-    this.pauseButtonText = this.add
-      .text(28, uiLayout.hudY, "II", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "11px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(46);
+  private publishRunUiState() {
+    const remainingMs = this.nextHeroAbilityAt - this.time.now;
+    const abilityReady = remainingMs <= 0;
 
-    this.speedButton = this.add
-      .rectangle(64, uiLayout.hudY, 34, 28, this.palette.hud, 0.95)
-      .setStrokeStyle(2, 0xffffff, 0.7)
-      .setDepth(45)
-      .setInteractive({ useHandCursor: true });
-    this.speedButtonText = this.add
-      .text(64, uiLayout.hudY, "1x", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "10px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(46);
+    const structs: RunUiStruct[] = [
+      { mode: "trap", def: spikeTrapDefinition, sprite: "spike-trap" },
+      { mode: "mill", def: coinMillDefinition, sprite: "coin-mill" },
+      { mode: "barracks", def: barracksDefinition, sprite: "barracks" },
+      { mode: "wall", def: stoneWallDefinition, sprite: "stone-wall" },
+      { mode: "shrine", def: healingShrineDefinition, sprite: "healing-shrine" },
+    ].map(({ mode, def, sprite }) => ({
+      mode: mode as RunUiStruct["mode"],
+      id: def.id,
+      name: def.name,
+      icon: def.icon,
+      cost: def.baseCost,
+      color: def.color,
+      sprite,
+      unlockWave: def.unlockWave,
+      unlocked: this.wave >= def.unlockWave,
+      selected: this.selectedBuildMode === mode,
+    }));
 
-    this.pauseButton.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event.stopPropagation();
-        this.togglePause();
-      },
-    );
-    this.speedButton.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event.stopPropagation();
-        this.toggleRunSpeed();
-      },
-    );
-
-    this.startWaveButton = this.add
-      .rectangle(195, uiLayout.toastY, 118, 28, 0x216869, 0.96)
-      .setStrokeStyle(2, 0xffffff, 0.85)
-      .setDepth(45)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-    this.startWaveButtonText = this.add
-      .text(195, uiLayout.toastY, "Start wave", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "11px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(46)
-      .setVisible(false);
-
-    this.startWaveButton.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event.stopPropagation();
-        this.beginNextWave();
-      },
-    );
+    gameBridge.emit("state", {
+      fortHp: this.fortHp,
+      maxFortHp: this.maxFortHp,
+      fortShieldMax: this.fortShieldMax,
+      fortShieldRemaining: this.fortShieldRemaining,
+      wave: this.wave,
+      coins: this.coins,
+      isPaused: this.isPaused,
+      runSpeed: this.runSpeed,
+      waitingToStartWave: this.waitingToStartWave,
+      isChoosingUpgrade: this.isChoosingUpgrade,
+      abilityLabel: this.selectedHeroAbility,
+      abilityReady,
+      abilityCooldownSec: abilityReady ? 0 : Math.ceil(remainingMs / 1000),
+      dockTab: this.dockTab,
+      buildMode: this.selectedBuildMode,
+      towers: starterTowers.map((tower, index) => ({
+        index,
+        id: tower.id,
+        name: tower.name,
+        icon: tower.icon,
+        cost: tower.baseCost,
+        color: tower.color,
+        sprite: towerAssetKeys[tower.id] ?? "kenney-tower-archer",
+        selected: this.selectedBuildMode === "tower" && this.selectedTowerIndex === index,
+      })),
+      structs,
+      toast: this.toastMessage,
+    });
   }
 
   private togglePause() {
@@ -415,7 +369,7 @@ export class RunScene extends Phaser.Scene {
 
     this.isPaused = !this.isPaused;
     this.syncTimeScale();
-    this.updateRunControls();
+    this.publishRunUiState();
     this.showToast(this.isPaused ? "Run paused" : "Run resumed");
   }
 
@@ -427,7 +381,7 @@ export class RunScene extends Phaser.Scene {
 
     this.runSpeed = this.runSpeed === 1 ? 1.5 : 1;
     this.syncTimeScale();
-    this.updateRunControls();
+    this.publishRunUiState();
     this.showToast(`Speed ${this.runSpeed}x`);
   }
 
@@ -445,148 +399,34 @@ export class RunScene extends Phaser.Scene {
     this.time.timeScale = this.runSpeed;
   }
 
-  private updateRunControls() {
-    if (!this.pauseButtonText || !this.speedButtonText || !this.pauseButton || !this.speedButton) return;
-
-    this.pauseButtonText.setText(this.isPaused ? ">" : "II");
-    this.pauseButton.setFillStyle(this.isPaused ? 0x216869 : this.palette.hud, 0.92);
-    this.speedButtonText.setText(`${this.runSpeed}x`);
-    this.speedButton.setAlpha(this.isPaused || this.isChoosingUpgrade ? 0.45 : 1);
-  }
-
   private createBuildSlots() {
     const slots = [
-      [98, 152],
-      [292, 168],
-      [75, 355],
-      [315, 452],
-      [124, 494],
-      [278, 262],
+      [98, 128],
+      [292, 142],
+      [75, 318],
+      [315, 408],
+      [124, 448],
+      [278, 228],
     ];
 
     slots.forEach(([x, y]) => {
-      const slot = this.add.rectangle(x, y, 58, 58, 0xf7f2e8, 0.72)
-        .setStrokeStyle(3, 0x216869)
+      const slot = this.add.circle(x, y, 26, 0xffffff, 0.12)
+        .setStrokeStyle(2, 0xffffff, 0.35)
         .setDepth(3)
         .setInteractive({ useHandCursor: true });
 
-      this.towerSlots.push(slot);
-      this.add.text(x, y + 1, "+", {
-        color: "#216869",
-        fontFamily: "Arial",
-        fontSize: "30px",
-        fontStyle: "bold",
-      }).setOrigin(0.5).setDepth(4);
+      this.towerSlots.push(slot as unknown as Phaser.GameObjects.Rectangle);
+      this.add.circle(x, y, 4, 0xffffff, 0.45).setDepth(4);
     });
   }
 
   private createTrapSlots() {
     trapPadPositions.forEach(([x, y]) => {
-      const slot = this.add.rectangle(x, y, 46, 46, spikeTrapDefinition.color, 0.28)
-        .setStrokeStyle(2, spikeTrapDefinition.color, 0.9)
+      const slot = this.add.circle(x, y, 18, 0x17202b, 0.22)
+        .setStrokeStyle(1.5, 0xffffff, 0.28)
         .setDepth(3);
 
-      this.trapSlots.push(slot);
-      this.add.text(x, y, "!", {
-        color: "#3d4a35",
-        fontFamily: "Arial",
-        fontSize: "22px",
-        fontStyle: "bold",
-      }).setOrigin(0.5).setDepth(4);
-    });
-  }
-
-  private createTowerPicker() {
-    this.add.rectangle(195, uiLayout.dockTop + 52, 390, 110, this.palette.hud, 0.94).setDepth(28);
-
-    structPickerSlots.forEach((slot) => this.createStructPickerChip(slot.key, slot.x));
-
-    starterTowers.forEach((tower, index) => {
-      const { x } = towerPickerSlots[index] ?? towerPickerSlots[0];
-      const button = this.add
-        .rectangle(x, uiLayout.towerRowY, uiLayout.towerW, uiLayout.towerH, tower.color)
-        .setStrokeStyle(index === this.selectedTowerIndex ? 3 : 1, 0xffffff, index === this.selectedTowerIndex ? 1 : 0.65)
-        .setDepth(30)
-        .setInteractive({ useHandCursor: true });
-      this.towerPickerButtons.push(button);
-      this.add.image(x, uiLayout.towerRowY - 1, towerAssetKeys[tower.id]).setScale(0.22).setDepth(31);
-      this.add
-        .text(x, uiLayout.towerRowY + 14, `$${tower.baseCost}`, {
-          color: "#e8edf2",
-          fontFamily: "Arial",
-          fontSize: "9px",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5)
-        .setDepth(32);
-
-      button.on("pointerdown", () => {
-        this.selectTower(index);
-      });
-    });
-
-    this.abilityButton = this.add
-      .rectangle(338, uiLayout.towerRowY, 52, uiLayout.towerH, this.heroTint)
-      .setStrokeStyle(2, 0xffffff, 0.85)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.abilityText = this.add
-      .text(338, uiLayout.towerRowY, "Ability", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "9px",
-        fontStyle: "bold",
-        align: "center",
-        wordWrap: { width: 48 },
-      })
-      .setOrigin(0.5)
-      .setDepth(31);
-
-    this.abilityButton.on("pointerdown", () => this.useHeroAbility());
-  }
-
-  private createStructPickerChip(kind: (typeof structPickerSlots)[number]["key"], x: number) {
-    const config = {
-      trap: { def: spikeTrapDefinition, texture: "spike-trap", mode: "trap" as const },
-      mill: { def: coinMillDefinition, texture: "coin-mill", mode: "mill" as const },
-      barracks: { def: barracksDefinition, texture: "barracks", mode: "barracks" as const },
-      wall: { def: stoneWallDefinition, texture: "stone-wall", mode: "wall" as const },
-      shrine: { def: healingShrineDefinition, texture: "healing-shrine", mode: "shrine" as const },
-    }[kind];
-    const unlocked = this.wave >= config.def.unlockWave;
-    const selected = this.selectedBuildMode === config.mode;
-    const button = this.add
-      .rectangle(x, uiLayout.structRowY, uiLayout.chipW, uiLayout.chipH, unlocked ? config.def.color : 0x4b5563)
-      .setStrokeStyle(selected ? 3 : 1, 0xffffff, selected ? 1 : 0.55)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    this.add
-      .image(x, uiLayout.structRowY - 2, config.texture)
-      .setScale(0.2)
-      .setDepth(31)
-      .setAlpha(unlocked ? 1 : 0.4);
-    this.add
-      .text(x, uiLayout.structRowY + 13, unlocked ? `$${config.def.baseCost}` : String(config.def.unlockWave), {
-        color: unlocked ? "#e8edf2" : "#cbd5e1",
-        fontFamily: "Arial",
-        fontSize: "8px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(32);
-
-    if (kind === "trap") this.trapPickerButton = button;
-    if (kind === "mill") this.coinMillPickerButton = button;
-    if (kind === "barracks") this.barracksPickerButton = button;
-    if (kind === "wall") this.wallPickerButton = button;
-    if (kind === "shrine") this.shrinePickerButton = button;
-
-    button.on("pointerdown", () => {
-      if (config.mode === "trap") this.selectTrap();
-      if (config.mode === "mill") this.selectCoinMill();
-      if (config.mode === "barracks") this.selectBarracks();
-      if (config.mode === "wall") this.selectStoneWall();
-      if (config.mode === "shrine") this.selectHealingShrine();
+      this.trapSlots.push(slot as unknown as Phaser.GameObjects.Rectangle);
     });
   }
 
@@ -1295,15 +1135,9 @@ export class RunScene extends Phaser.Scene {
     if (!this.waitingToStartWave || this.isChoosingUpgrade || this.isGameOver) return;
 
     this.waitingToStartWave = false;
-    this.setStartWaveButtonVisible(false);
     this.refreshFortShield();
     this.spawnWave();
     this.showToast(`Wave ${this.wave} incoming`);
-  }
-
-  private setStartWaveButtonVisible(visible: boolean) {
-    this.startWaveButton?.setVisible(visible);
-    this.startWaveButtonText?.setVisible(visible);
   }
 
   private getWaveEnemyMix() {
@@ -1439,10 +1273,7 @@ export class RunScene extends Phaser.Scene {
       coins: this.coins,
     });
 
-    if (!this.hudText) return;
-    const shieldLabel = this.fortShieldMax > 0 ? `  ·  ${this.fortShieldRemaining} shield` : "";
-    this.hudText.setText(`Wave ${this.wave}  ·  ${this.fortHp} HP${shieldLabel}  ·  $${this.coins}`);
-    this.updateAbilityButton();
+    this.publishRunUiState();
 
     if (this.fortHp <= 0 && !this.isGameOver) {
       this.isGameOver = true;
@@ -1471,13 +1302,10 @@ export class RunScene extends Phaser.Scene {
   private selectTower(index: number) {
     if (this.isChoosingUpgrade) return;
 
+    this.dockTab = "towers";
     this.selectedBuildMode = "tower";
     this.selectedTowerIndex = index;
-    this.towerPickerButtons.forEach((button, buttonIndex) => {
-      const selected = buttonIndex === index;
-      button.setStrokeStyle(selected ? 3 : 1, 0xffffff, selected ? 1 : 0.65);
-    });
-    this.clearSecondaryPickerSelection();
+    this.publishRunUiState();
     this.showToast(`${starterTowers[index]?.name ?? "Tower"} selected`);
   }
 
@@ -1489,10 +1317,9 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    this.dockTab = "support";
     this.selectedBuildMode = "trap";
-    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
-    this.clearSecondaryPickerSelection();
-    this.trapPickerButton?.setStrokeStyle(3, 0xffffff, 1);
+    this.publishRunUiState();
     this.showToast("Tap a trap pad on the path");
   }
 
@@ -1504,10 +1331,9 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    this.dockTab = "support";
     this.selectedBuildMode = "mill";
-    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
-    this.clearSecondaryPickerSelection();
-    this.coinMillPickerButton?.setStrokeStyle(3, 0xffffff, 1);
+    this.publishRunUiState();
     this.showToast("Tap a build pad for coin mill");
   }
 
@@ -1519,10 +1345,9 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    this.dockTab = "support";
     this.selectedBuildMode = "barracks";
-    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
-    this.clearSecondaryPickerSelection();
-    this.barracksPickerButton?.setStrokeStyle(3, 0xffffff, 1);
+    this.publishRunUiState();
     this.showToast("Tap a build pad for barracks");
   }
 
@@ -1534,10 +1359,9 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    this.dockTab = "support";
     this.selectedBuildMode = "wall";
-    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
-    this.clearSecondaryPickerSelection();
-    this.wallPickerButton?.setStrokeStyle(3, 0xffffff, 1);
+    this.publishRunUiState();
     this.showToast("Tap a build pad for stone wall");
   }
 
@@ -1549,47 +1373,21 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
+    this.dockTab = "support";
     this.selectedBuildMode = "shrine";
-    this.towerPickerButtons.forEach((button) => button.setStrokeStyle(2, 0xffffff));
-    this.clearSecondaryPickerSelection();
-    this.shrinePickerButton?.setStrokeStyle(3, 0xffffff, 1);
+    this.publishRunUiState();
     this.showToast("Tap a build pad for healing shrine");
   }
 
-  private clearSecondaryPickerSelection() {
-    this.trapPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
-    this.coinMillPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
-    this.barracksPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
-    this.wallPickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
-    this.shrinePickerButton?.setStrokeStyle(1, 0xffffff, 0.55);
-  }
-
   private showToast(message: string) {
-    if (!this.toastText) return;
-
-    this.toastText.setText(message).setAlpha(1);
-    this.tweens.killTweensOf(this.toastText);
-    this.tweens.add({
-      targets: this.toastText,
-      alpha: 0,
-      duration: 450,
-      delay: 1200,
-      ease: "Sine.easeIn",
+    this.toastMessage = message;
+    this.publishRunUiState();
+    this.time.delayedCall(1400, () => {
+      if (this.toastMessage === message) {
+        this.toastMessage = "";
+        this.publishRunUiState();
+      }
     });
-  }
-
-  private updateAbilityButton() {
-    if (!this.abilityText || !this.abilityButton) return;
-
-    const remainingMs = this.nextHeroAbilityAt - this.time.now;
-    if (remainingMs > 0) {
-      this.abilityText.setText(`${Math.ceil(remainingMs / 1000)}s`);
-      this.abilityButton.setFillStyle(0x4b5563, 0.88);
-      return;
-    }
-
-    this.abilityText.setText(this.selectedHeroAbility);
-    this.abilityButton.setFillStyle(this.heroTint, 1);
   }
 
   private useHeroAbility() {
@@ -1662,6 +1460,7 @@ export class RunScene extends Phaser.Scene {
     const shrineHeal = this.collectShrineRepair();
     this.refreshFortShield();
     this.isChoosingUpgrade = true;
+    this.publishRunUiState();
     this.syncTimeScale();
     const offeredUpgrades = this.pickUpgrades();
     const overlay = this.add.container(0, 0).setDepth(80);
@@ -1751,38 +1550,9 @@ export class RunScene extends Phaser.Scene {
     this.syncTimeScale();
     this.wave += 1;
     this.coins += 30;
-    this.refreshSecondaryPickerLocks();
-    this.updateRunControls();
     this.showToast(`${upgrade.name} gained — tap Start Wave`);
     this.waitingToStartWave = true;
-    this.setStartWaveButtonVisible(true);
-  }
-
-  private refreshSecondaryPickerLocks() {
-    if (this.trapPickerButton) {
-      const trapUnlocked = this.wave >= spikeTrapDefinition.unlockWave;
-      this.trapPickerButton.setFillStyle(trapUnlocked ? spikeTrapDefinition.color : 0x4b5563);
-    }
-
-    if (this.coinMillPickerButton) {
-      const millUnlocked = this.wave >= coinMillDefinition.unlockWave;
-      this.coinMillPickerButton.setFillStyle(millUnlocked ? coinMillDefinition.color : 0x4b5563);
-    }
-
-    if (this.barracksPickerButton) {
-      const barracksUnlocked = this.wave >= barracksDefinition.unlockWave;
-      this.barracksPickerButton.setFillStyle(barracksUnlocked ? barracksDefinition.color : 0x4b5563);
-    }
-
-    if (this.wallPickerButton) {
-      const wallUnlocked = this.wave >= stoneWallDefinition.unlockWave;
-      this.wallPickerButton.setFillStyle(wallUnlocked ? stoneWallDefinition.color : 0x4b5563);
-    }
-
-    if (this.shrinePickerButton) {
-      const shrineUnlocked = this.wave >= healingShrineDefinition.unlockWave;
-      this.shrinePickerButton.setFillStyle(shrineUnlocked ? healingShrineDefinition.color : 0x4b5563);
-    }
+    this.publishRunUiState();
   }
 
   private applyUpgrade(upgrade: UpgradeDefinition) {
