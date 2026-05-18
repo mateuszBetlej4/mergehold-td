@@ -169,9 +169,9 @@ const spriteFacingOffset: Record<string, number> = {
   "kenney-tower-cannon": Math.PI / 2,
   "kenney-tower-magic": 0,
   "kenney-enemy-grunt": 0,
-  "kenney-enemy-runner": 0,
-  "kenney-enemy-tank": 0,
-  "kenney-enemy-shield": 0,
+  "kenney-enemy-runner": Math.PI / 2,
+  "kenney-enemy-tank": Math.PI / 2,
+  "kenney-enemy-shield": Math.PI / 2,
   "kenney-enemy-boss": Math.PI / 2,
   "enemy-grunt": Math.PI / 2,
   "enemy-runner": Math.PI / 2,
@@ -213,6 +213,8 @@ export class RunScene extends Phaser.Scene {
   private fireRateMultiplier = 1;
   private rewardMultiplier = 1;
   private runRewardClaimed = false;
+  private highestClearedWave = 0;
+  private lastMetaWaveRewarded = 0;
   private selectedHeroRole: "guardian" | "ranger" | "mage" = "guardian";
   private selectedHeroAbility = "Fort Shield";
   private heroCooldownMs = 18000;
@@ -255,6 +257,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   create() {
+    useGameStore.getState().beginRun();
     this.applyLoadout();
     this.drawMap();
     this.bindGameBridge();
@@ -362,6 +365,11 @@ export class RunScene extends Phaser.Scene {
       if (mode === "shrine") this.selectHealingShrine();
     };
     const onUseAbility = () => this.useHeroAbility();
+    const onRestartRun = () => {
+      if (!this.isGameOver) return;
+      useGameStore.getState().dismissRunEndSummary();
+      this.scene.restart();
+    };
 
     gameBridge.on("togglePause", onTogglePause);
     gameBridge.on("toggleSpeed", onToggleSpeed);
@@ -370,6 +378,7 @@ export class RunScene extends Phaser.Scene {
     gameBridge.on("selectTower", onSelectTower);
     gameBridge.on("selectStruct", onSelectStruct);
     gameBridge.on("useAbility", onUseAbility);
+    gameBridge.on("restartRun", onRestartRun);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       gameBridge.off("togglePause", onTogglePause);
@@ -379,6 +388,7 @@ export class RunScene extends Phaser.Scene {
       gameBridge.off("selectTower", onSelectTower);
       gameBridge.off("selectStruct", onSelectStruct);
       gameBridge.off("useAbility", onUseAbility);
+      gameBridge.off("restartRun", onRestartRun);
     });
   }
 
@@ -411,7 +421,9 @@ export class RunScene extends Phaser.Scene {
       fortShieldMax: this.fortShieldMax,
       fortShieldRemaining: this.fortShieldRemaining,
       wave: this.wave,
+      highestClearedWave: this.highestClearedWave,
       coins: this.coins,
+      isGameOver: this.isGameOver,
       isPaused: this.isPaused,
       runSpeed: this.runSpeed,
       waitingToStartWave: this.waitingToStartWave,
@@ -509,10 +521,7 @@ export class RunScene extends Phaser.Scene {
   private tryBuildOrMerge(x: number, y: number) {
     if (this.isChoosingUpgrade) return;
 
-    if (this.isGameOver) {
-      this.scene.restart();
-      return;
-    }
+    if (this.isGameOver) return;
 
     const trapSlot = this.trapSlots.find((candidate) => {
       return Phaser.Math.Distance.Between(x, y, candidate.x, candidate.y) < 28;
@@ -1228,15 +1237,13 @@ export class RunScene extends Phaser.Scene {
       return enemyDefinitions.filter((enemy) => enemy.id === "gatebreaker");
     }
 
-    if (this.wave >= 4) {
-      return enemyDefinitions.filter((enemy) => ["grunt", "runner", "tank", "shield"].includes(enemy.id));
-    }
+    const mix = ["grunt"];
+    if (this.wave >= 2) mix.push("runner");
+    if (this.wave >= 4) mix.push("tank", "shield");
+    if (this.wave >= 6) mix.push("bat");
+    if (this.wave >= 8) mix.push("bomber");
 
-    if (this.wave >= 2) {
-      return enemyDefinitions.filter((enemy) => ["grunt", "runner"].includes(enemy.id));
-    }
-
-    return enemyDefinitions.filter((enemy) => enemy.id === "grunt");
+    return enemyDefinitions.filter((enemy) => mix.includes(enemy.id));
   }
 
   private spawnEnemy(definition: EnemyDefinition) {
@@ -1386,31 +1393,25 @@ export class RunScene extends Phaser.Scene {
       fortHp: this.fortHp,
       wave: this.wave,
       coins: this.coins,
+      highestClearedWave: this.highestClearedWave,
     });
 
     this.publishRunUiState();
 
     if (this.fortHp <= 0 && !this.isGameOver) {
       this.isGameOver = true;
-      const reward = this.claimEndOfRunRewards();
-      this.add.rectangle(195, 347, 308, 132, 0x17202b, 0.9);
-      this.add.text(195, 320, "FORT LOST", {
-        color: "#ffffff",
-        fontFamily: "Arial",
-        fontSize: "26px",
-        fontStyle: "bold",
-      }).setOrigin(0.5);
-      this.add.text(195, 356, `Earned ${reward} gems`, {
-        color: "#f2c14e",
-        fontFamily: "Arial",
-        fontSize: "17px",
-        fontStyle: "bold",
-      }).setOrigin(0.5);
-      this.add.text(195, 384, "Tap anywhere to restart", {
-        color: "#f7f2e8",
-        fontFamily: "Arial",
-        fontSize: "15px",
-      }).setOrigin(0.5);
+      const fortBonusGems = this.claimEndOfRunRewards();
+      const { lastRun } = useGameStore.getState();
+      gameBridge.emit("runEnded", {
+        reason: "defeat",
+        wave: this.wave,
+        highestClearedWave: this.highestClearedWave,
+        coins: this.coins,
+        fortBonusGems,
+        sessionGems: lastRun.sessionGems,
+      });
+      this.publishRunUiState();
+      this.syncTimeScale();
     }
   }
 
@@ -1576,6 +1577,13 @@ export class RunScene extends Phaser.Scene {
   private showUpgradeChoice() {
     if (this.isChoosingUpgrade || this.isGameOver) return;
 
+    let waveGemDrip = 0;
+    if (this.wave > this.lastMetaWaveRewarded) {
+      waveGemDrip = useGameStore.getState().recordWaveClear(this.wave);
+      this.lastMetaWaveRewarded = this.wave;
+      this.highestClearedWave = Math.max(this.highestClearedWave, this.wave);
+    }
+
     const millIncome = this.collectCoinMillIncome();
     const shrineHeal = this.collectShrineRepair();
     this.refreshFortShield();
@@ -1599,6 +1607,15 @@ export class RunScene extends Phaser.Scene {
     }).setOrigin(0.5));
 
     let bonusY = 206;
+    if (waveGemDrip > 0) {
+      overlay.add(this.add.text(195, bonusY, `+${waveGemDrip} gems banked`, {
+        color: "#f2c14e",
+        fontFamily: "Arial",
+        fontSize: "14px",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+      bonusY += 22;
+    }
     if (millIncome > 0) {
       overlay.add(this.add.text(195, bonusY, `Coin mills +${millIncome}`, {
         color: "#fff7da",
@@ -1759,7 +1776,7 @@ export class RunScene extends Phaser.Scene {
     if (this.runRewardClaimed) return 0;
 
     this.runRewardClaimed = true;
-    return useGameStore.getState().claimRunRewards(this.wave, this.coins);
+    return useGameStore.getState().claimRunRewards(this.wave, this.coins, this.highestClearedWave);
   }
 
   private rotateSpriteToward(

@@ -25,13 +25,24 @@ export type RunUiStruct = {
   selected: boolean;
 };
 
+export type RunEndEvent = {
+  reason: "defeat";
+  wave: number;
+  highestClearedWave: number;
+  coins: number;
+  fortBonusGems: number;
+  sessionGems: number;
+};
+
 export type RunUiState = {
   fortHp: number;
   maxFortHp: number;
   fortShieldMax: number;
   fortShieldRemaining: number;
   wave: number;
+  highestClearedWave: number;
   coins: number;
+  isGameOver: boolean;
   isPaused: boolean;
   runSpeed: number;
   waitingToStartWave: boolean;

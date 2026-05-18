@@ -22,9 +22,14 @@ import { gameContent } from "../data/gameContent";
 import { heroDefinitions } from "../data/heroes";
 import { mapDefinitions } from "../data/maps";
 import { troopDefinitions } from "../data/troops";
+import { upgradeDefinitions } from "../data/upgrades";
 import { GameCanvas } from "../game/GameCanvas";
+import { CatalogThumb } from "./CatalogThumb";
 import { PlayHud } from "./PlayHud";
+import { useCallback, useState } from "react";
+import { gameBridge } from "../game/gameBridge";
 import {
+  getUnlockWave,
   permanentUpgradeDefinitions,
   type AppScreen,
   type PermanentUpgradeId,
@@ -39,9 +44,64 @@ const navItems: Array<{ screen: AppScreen; label: string; icon: typeof Home }> =
   { screen: "settings", label: "Settings", icon: Cog },
 ];
 
+type LeavePlayHandlers = {
+  leaveConfirmOpen: boolean;
+  onRequestLeave: () => void;
+  onCancelLeave: () => void;
+  onConfirmLeave: () => void;
+};
+
 export function App() {
   const activeScreen = useGameStore((state) => state.activeScreen);
   const setActiveScreen = useGameStore((state) => state.setActiveScreen);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [pendingLeaveScreen, setPendingLeaveScreen] = useState<AppScreen | null>(null);
+
+  const confirmLeaveRun = useCallback(() => {
+    const { run, forfeitRun, runEndSummary, dismissRunEndSummary } = useGameStore.getState();
+    if (!runEndSummary) {
+      forfeitRun(run.wave, run.highestClearedWave);
+    } else {
+      dismissRunEndSummary();
+    }
+    setLeaveConfirmOpen(false);
+    const target = pendingLeaveScreen ?? "home";
+    setPendingLeaveScreen(null);
+    setActiveScreen(target);
+  }, [pendingLeaveScreen, setActiveScreen]);
+
+  const navigateTo = useCallback((screen: AppScreen) => {
+    if (activeScreen === "play" && screen !== "play") {
+      const { runEndSummary, run } = useGameStore.getState();
+      if (runEndSummary) {
+        useGameStore.getState().dismissRunEndSummary();
+        setActiveScreen(screen);
+        return;
+      }
+      if (run.fortHp <= 0) {
+        useGameStore.getState().dismissRunEndSummary();
+        setActiveScreen(screen);
+        return;
+      }
+      setPendingLeaveScreen(screen);
+      setLeaveConfirmOpen(true);
+      return;
+    }
+    setActiveScreen(screen);
+  }, [activeScreen, setActiveScreen]);
+
+  const leaveHandlers: LeavePlayHandlers = {
+    leaveConfirmOpen,
+    onRequestLeave: () => {
+      setPendingLeaveScreen("home");
+      setLeaveConfirmOpen(true);
+    },
+    onCancelLeave: () => {
+      setLeaveConfirmOpen(false);
+      setPendingLeaveScreen(null);
+    },
+    onConfirmLeave: confirmLeaveRun,
+  };
 
   return (
     <main className="app-shell">
@@ -54,13 +114,13 @@ export function App() {
             <span>Mergehold TD</span>
             <strong>{screenTitle(activeScreen)}</strong>
           </div>
-          <button type="button" onClick={() => setActiveScreen("settings")} aria-label="Open settings">
+          <button type="button" onClick={() => navigateTo("settings")} aria-label="Open settings">
             <Cog size={18} />
           </button>
         </div>
 
         <div className={`screen-body ${activeScreen === "play" ? "is-play" : ""}`}>
-          {renderScreen(activeScreen, setActiveScreen)}
+          {renderScreen(activeScreen, navigateTo, leaveHandlers)}
         </div>
 
         <nav className="bottom-nav" aria-label="Main navigation">
@@ -71,7 +131,7 @@ export function App() {
                 className={activeScreen === item.screen ? "active" : ""}
                 key={item.screen}
                 type="button"
-                onClick={() => setActiveScreen(item.screen)}
+                onClick={() => navigateTo(item.screen)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -79,6 +139,8 @@ export function App() {
             );
           })}
         </nav>
+
+        <RunEndSummaryModal />
       </section>
 
       <aside className="builder-panel" aria-label="Starter status">
@@ -128,22 +190,28 @@ export function App() {
   );
 }
 
-function renderScreen(screen: AppScreen, setActiveScreen: (screen: AppScreen) => void) {
+function renderScreen(
+  screen: AppScreen,
+  navigateTo: (screen: AppScreen) => void,
+  leaveHandlers: LeavePlayHandlers,
+) {
   switch (screen) {
     case "play":
-      return <PlayScreen />;
+      return <PlayScreen {...leaveHandlers} />;
     case "upgrades":
       return <PermanentUpgradesScreen />;
     case "collection":
-      return <CollectionScreen setActiveScreen={setActiveScreen} />;
+      return <CollectionScreen navigateTo={navigateTo} />;
     case "buildings":
-      return <CardsScreen title="Buildings" icon={Castle} items={buildingDefinitions} />;
+      return <CardsScreen title="Buildings" icon={Castle} items={buildingDefinitions} category="building" />;
     case "heroes":
       return <HeroesScreen />;
     case "troops":
-      return <CardsScreen title="Troops" icon={Trophy} items={troopDefinitions} />;
+      return <CardsScreen title="Troops" icon={Trophy} items={troopDefinitions} category="troop" />;
+    case "run-upgrades":
+      return <RunUpgradesScreen />;
     case "enemies":
-      return <CardsScreen title="Enemies" icon={Skull} items={enemyDefinitions} />;
+      return <CardsScreen title="Enemies" icon={Skull} items={enemyDefinitions} category="enemy" />;
     case "maps":
       return <MapsScreen />;
     case "settings":
@@ -151,13 +219,33 @@ function renderScreen(screen: AppScreen, setActiveScreen: (screen: AppScreen) =>
     case "deploy":
       return <DeployScreen />;
     default:
-      return <HomeScreen setActiveScreen={setActiveScreen} />;
+      return <HomeScreen navigateTo={navigateTo} />;
   }
 }
 
-function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) => void }) {
-  const run = useGameStore((state) => state.run);
+function formatUnlockLabel(unlock: string, bestWave: number) {
+  const required = getUnlockWave(unlock);
+  if (!unlock.match(/\d+/)) return unlock;
+  if (bestWave >= required) return unlock;
+  return `${unlock} · best W${bestWave}`;
+}
+
+function formatLastRunLabel(lastRun: ReturnType<typeof useGameStore.getState>["lastRun"]) {
+  if (lastRun.status === "lost") {
+    return lastRun.sessionGems > 0 ? `Lost W${lastRun.peakWave} · +${lastRun.sessionGems}` : `Lost W${lastRun.peakWave}`;
+  }
+  if (lastRun.status === "abandoned") {
+    return lastRun.sessionGems > 0 ? `Left W${lastRun.peakWave} · +${lastRun.sessionGems}` : `Left W${lastRun.peakWave}`;
+  }
+  if (lastRun.status === "active" && lastRun.peakWave > 0) {
+    return `Peak W${lastRun.peakWave}`;
+  }
+  return "—";
+}
+
+function HomeScreen({ navigateTo }: { navigateTo: (screen: AppScreen) => void }) {
   const progress = useGameStore((state) => state.progress);
+  const lastRun = useGameStore((state) => state.lastRun);
   const selectedHero = heroDefinitions.find((hero) => hero.id === progress.selectedHeroId) ?? heroDefinitions[0];
   const selectedMap = mapDefinitions.find((map) => map.id === progress.selectedMapId) ?? mapDefinitions[0];
 
@@ -167,7 +255,7 @@ function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) 
         <Shield size={34} />
         <h2>Guard the pass</h2>
         <p>Build, merge, survive waves, and grow your fort between runs.</p>
-        <button type="button" onClick={() => setActiveScreen("play")}>
+        <button type="button" onClick={() => navigateTo("play")}>
           Start run
         </button>
       </div>
@@ -175,68 +263,177 @@ function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) 
       <div className="quick-stats">
         <Metric label="Best" value={`Wave ${progress.bestWave}`} />
         <Metric label="Gems" value={String(progress.softCurrency)} />
-        <Metric label="Run" value={`W${run.wave}`} />
+        <Metric label="Last" value={formatLastRunLabel(lastRun)} />
       </div>
 
       <div className="loadout-strip">
-        <button type="button" onClick={() => setActiveScreen("heroes")}>
+        <button type="button" onClick={() => navigateTo("heroes")}>
           <span>Hero</span>
           <strong>{selectedHero.name}</strong>
         </button>
-        <button type="button" onClick={() => setActiveScreen("maps")}>
+        <button type="button" onClick={() => navigateTo("maps")}>
           <span>Map</span>
           <strong>{selectedMap.name}</strong>
         </button>
       </div>
 
       <div className="screen-grid two">
-        <MenuTile icon={Sparkles} label="Permanent Upgrades" onClick={() => setActiveScreen("upgrades")} />
-        <MenuTile icon={Castle} label="Buildings" onClick={() => setActiveScreen("buildings")} />
-        <MenuTile icon={User} label="Heroes" onClick={() => setActiveScreen("heroes")} />
-        <MenuTile icon={Skull} label="Enemies" onClick={() => setActiveScreen("enemies")} />
-        <MenuTile icon={Rocket} label="Deploy" onClick={() => setActiveScreen("deploy")} />
+        <MenuTile icon={Sparkles} label="Permanent Upgrades" onClick={() => navigateTo("upgrades")} />
+        <MenuTile icon={Castle} label="Buildings" onClick={() => navigateTo("buildings")} />
+        <MenuTile icon={User} label="Heroes" onClick={() => navigateTo("heroes")} />
+        <MenuTile icon={Skull} label="Enemies" onClick={() => navigateTo("enemies")} />
+        {import.meta.env.DEV ? (
+          <MenuTile icon={Rocket} label="Deploy" onClick={() => navigateTo("deploy")} />
+        ) : null}
       </div>
     </section>
   );
 }
 
-function PlayScreen() {
+function PlayScreen(props: LeavePlayHandlers) {
   return (
     <section className="play-screen">
       <GameCanvas />
-      <PlayHud />
+      <PlayHud {...props} />
     </section>
   );
 }
 
-function CollectionScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) => void }) {
+function RunEndSummaryModal() {
+  const runEndSummary = useGameStore((state) => state.runEndSummary);
+  const progress = useGameStore((state) => state.progress);
+  const dismissRunEndSummary = useGameStore((state) => state.dismissRunEndSummary);
+  const setActiveScreen = useGameStore((state) => state.setActiveScreen);
+
+  if (!runEndSummary) return null;
+
+  const isDefeat = runEndSummary.reason === "defeat";
+  const title = isDefeat ? "Fort lost" : "Run ended";
+  const dripGems = Math.max(0, runEndSummary.sessionGems - runEndSummary.fortBonusGems);
+
+  return (
+    <div className="run-summary-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-summary-title">
+      <div className="run-summary-card">
+        <h2 id="run-summary-title">{title}</h2>
+        <p className="run-summary-wave">Peak wave {runEndSummary.peakWave}</p>
+        <div className="run-summary-gems">
+          <strong>+{runEndSummary.sessionGems} gems</strong>
+          <span>this run</span>
+        </div>
+        {isDefeat && runEndSummary.fortBonusGems > 0 ? (
+          <p className="run-summary-breakdown">
+            {dripGems > 0 ? `${dripGems} from waves · ` : ""}
+            +{runEndSummary.fortBonusGems} fort bonus
+          </p>
+        ) : (
+          <p className="run-summary-breakdown">
+            {runEndSummary.sessionGems > 0
+              ? "Wave-clear gems kept. No fort-death bonus."
+              : "No gems earned this run."}
+          </p>
+        )}
+        <p className="run-summary-wallet">Wallet: {progress.softCurrency} gems · Best W{progress.bestWave}</p>
+        <div className="run-summary-actions">
+          {isDefeat ? (
+            <button
+              type="button"
+              className="run-summary-btn run-summary-btn--primary"
+              onClick={() => {
+                dismissRunEndSummary();
+                gameBridge.emit("restartRun");
+              }}
+            >
+              Play again
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={`run-summary-btn ${isDefeat ? "" : "run-summary-btn--primary"}`}
+            onClick={() => {
+              dismissRunEndSummary();
+              setActiveScreen("home");
+            }}
+          >
+            Home
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CollectionScreen({ navigateTo }: { navigateTo: (screen: AppScreen) => void }) {
   return (
     <section className="content-screen">
       <ScreenHeader icon={Archive} title="Collection" />
       <div className="screen-grid">
-        <MenuTile icon={Castle} label={`${gameContent.buildings.length} buildings`} onClick={() => setActiveScreen("buildings")} />
-        <MenuTile icon={User} label={`${gameContent.heroes.length} heroes`} onClick={() => setActiveScreen("heroes")} />
-        <MenuTile icon={Skull} label={`${gameContent.enemies.length} enemies`} onClick={() => setActiveScreen("enemies")} />
-        <MenuTile icon={Map} label={`${gameContent.maps.length} maps`} onClick={() => setActiveScreen("maps")} />
-        <MenuTile icon={Trophy} label={`${gameContent.troops.length} troops`} onClick={() => setActiveScreen("troops")} />
-        <MenuTile icon={Sparkles} label={`${gameContent.upgrades.length} upgrades`} onClick={() => setActiveScreen("upgrades")} />
+        <MenuTile icon={Castle} label={`${gameContent.buildings.length} buildings`} onClick={() => navigateTo("buildings")} />
+        <MenuTile icon={User} label={`${gameContent.heroes.length} heroes`} onClick={() => navigateTo("heroes")} />
+        <MenuTile icon={Skull} label={`${gameContent.enemies.length} enemies`} onClick={() => navigateTo("enemies")} />
+        <MenuTile icon={Map} label={`${gameContent.maps.length} maps`} onClick={() => navigateTo("maps")} />
+        <MenuTile icon={Trophy} label={`${gameContent.troops.length} troops`} onClick={() => navigateTo("troops")} />
+        <MenuTile
+          icon={Sparkles}
+          label={`Run upgrades (${gameContent.upgrades.length})`}
+          onClick={() => navigateTo("run-upgrades")}
+        />
       </div>
     </section>
   );
 }
 
-function CardsScreen({ title, icon: Icon, items }: { title: string; icon: typeof Home; items: Array<Record<string, unknown>> }) {
+function CardsScreen({
+  title,
+  icon: Icon,
+  items,
+  category,
+}: {
+  title: string;
+  icon: typeof Home;
+  items: Array<Record<string, unknown>>;
+  category: "building" | "enemy" | "troop";
+}) {
   return (
     <section className="content-screen">
       <ScreenHeader icon={Icon} title={title} />
       <div className="card-list">
         {items.map((item) => (
           <article className="content-card" key={String(item.id)}>
-            <div className="card-token">{String(item.icon ?? item.name).slice(0, 1)}</div>
+            <CatalogThumb
+              itemId={String(item.id)}
+              category={category}
+              tint={typeof item.color === "number" ? item.color : undefined}
+              role={typeof item.role === "string" ? item.role : undefined}
+            />
             <div>
               <h3>{String(item.name)}</h3>
               <p>{String(item.description ?? item.ability ?? item.unlock ?? "Ready for tuning.")}</p>
               <span>{String(item.role ?? item.archetype ?? item.rarity ?? item.theme ?? "starter")}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RunUpgradesScreen() {
+  return (
+    <section className="content-screen">
+      <ScreenHeader icon={Sparkles} title="Run Upgrades" />
+      <p className="screen-lead">
+        Roguelike picks during a run (boss waves). Use the bottom nav <strong>Upgrades</strong> tab for permanent gem purchases.
+      </p>
+      <div className="card-list">
+        {upgradeDefinitions.map((upgrade) => (
+          <article className="content-card" key={upgrade.id}>
+            <div className={`card-token upgrade-token rarity-${upgrade.rarity}`}>
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h3>{upgrade.name}</h3>
+              <p>{upgrade.description}</p>
+              <span>{upgrade.rarity}</span>
             </div>
           </article>
         ))}
@@ -259,13 +456,11 @@ function HeroesScreen() {
           const isSelected = progress.selectedHeroId === hero.id;
           return (
             <article className={`content-card selectable-card ${isSelected ? "selected" : ""} ${isUnlocked ? "" : "locked"}`} key={hero.id}>
-              <div className="card-token" style={{ backgroundColor: `#${hero.color.toString(16).padStart(6, "0")}` }}>
-                {hero.name.slice(0, 1)}
-              </div>
+              <CatalogThumb itemId={hero.id} category="hero" tint={hero.color} />
               <div>
                 <h3>{hero.name}</h3>
                 <p>{hero.ability}: {hero.description}</p>
-                <span>{isUnlocked ? hero.role : hero.unlock}</span>
+                <span>{isUnlocked ? hero.role : formatUnlockLabel(hero.unlock, progress.bestWave)}</span>
                 <button className="select-button" type="button" disabled={!isUnlocked} onClick={() => selectHero(hero.id, unlockWave)}>
                   {isSelected ? "Selected" : isUnlocked ? "Select" : "Locked"}
                 </button>
@@ -298,7 +493,7 @@ function MapsScreen() {
               <div>
                 <h3>{map.name}</h3>
                 <p>{map.description}</p>
-                <span>{isUnlocked ? map.theme : map.unlock}</span>
+                <span>{isUnlocked ? map.theme : formatUnlockLabel(map.unlock, progress.bestWave)}</span>
                 <button className="select-button" type="button" disabled={!isUnlocked} onClick={() => selectMap(map.id, unlockWave)}>
                   {isSelected ? "Selected" : isUnlocked ? "Select" : "Locked"}
                 </button>
@@ -317,6 +512,7 @@ function SettingsScreen() {
   const toggleSound = useGameStore((state) => state.toggleSound);
   const toggleMusic = useGameStore((state) => state.toggleMusic);
   const resetProgress = useGameStore((state) => state.resetProgress);
+  const setActiveScreen = useGameStore((state) => state.setActiveScreen);
 
   return (
     <section className="content-screen">
@@ -329,12 +525,25 @@ function SettingsScreen() {
         <span>Music</span>
         <strong>{musicEnabled ? "On" : "Off"}</strong>
       </button>
+      {import.meta.env.DEV ? (
+        <button className="setting-row" type="button" onClick={() => setActiveScreen("deploy")}>
+          <span>Deploy</span>
+          <strong>Dev</strong>
+        </button>
+      ) : null}
       <div className="content-card">
         <div className="card-token">CC</div>
         <div>
           <h3>Asset credits</h3>
-          <p>Runtime assets are currently procedural placeholders. Imported packs must be logged in asset credits.</p>
-          <span>public/assets/licenses</span>
+          <p>
+            Runtime sprites use Kenney CC0 tower-defense art and project-owned SVGs under{" "}
+            <code>public/assets/optimized/sprites/</code>. Full attribution:{" "}
+            <a href="/assets/licenses/ASSET_CREDITS.md" target="_blank" rel="noreferrer">
+              ASSET_CREDITS.md
+            </a>
+            .
+          </p>
+          <span>Kenney CC0 + project SVGs</span>
         </div>
       </div>
       <button className="danger-row" type="button" onClick={resetProgress}>
@@ -348,6 +557,7 @@ function SettingsScreen() {
 function PermanentUpgradesScreen() {
   const progress = useGameStore((state) => state.progress);
   const buyPermanentUpgrade = useGameStore((state) => state.buyPermanentUpgrade);
+  const [toast, setToast] = useState<string | null>(null);
 
   return (
     <section className="content-screen">
@@ -356,6 +566,8 @@ function PermanentUpgradesScreen() {
         <span>Gems</span>
         <strong>{progress.softCurrency}</strong>
       </div>
+      <p className="upgrade-hint">Clear waves to bank gems; fort loss adds a completion bonus.</p>
+      {toast ? <p className="upgrade-toast" role="status">{toast}</p> : null}
       <div className="card-list">
         {permanentUpgradeDefinitions.map((upgrade) => {
           const level = progress.permanentUpgrades[upgrade.id];
@@ -363,17 +575,24 @@ function PermanentUpgradesScreen() {
           const canAfford = progress.softCurrency >= cost;
           return (
             <button
-              className={`upgrade-row ${canAfford ? "" : "locked"}`}
+              className={`upgrade-row ${canAfford ? "" : "cant-afford"}`}
               key={upgrade.id}
               type="button"
-              onClick={() => buyPermanentUpgrade(upgrade.id as PermanentUpgradeId)}
+              onClick={() => {
+                if (!canAfford) {
+                  setToast(`Need ${cost} gems — clear waves to earn more`);
+                  return;
+                }
+                const didBuy = buyPermanentUpgrade(upgrade.id as PermanentUpgradeId);
+                setToast(didBuy ? `${upgrade.name} upgraded to Lv ${level + 1}` : null);
+              }}
             >
               <div>
                 <h3>{upgrade.name}</h3>
                 <p>{upgrade.description}</p>
                 <span>Level {level}</span>
               </div>
-              <strong>{canAfford ? cost : `${cost}`}</strong>
+              <strong>{canAfford ? cost : `${cost} gems`}</strong>
             </button>
           );
         })}
@@ -448,10 +667,7 @@ function DeployCard({ icon: Icon, title, text }: { icon: typeof Home; title: str
 }
 
 function screenTitle(screen: AppScreen) {
+  if (screen === "run-upgrades") return "Run upgrades";
   return screen.charAt(0).toUpperCase() + screen.slice(1);
 }
 
-function getUnlockWave(unlock: string) {
-  const match = unlock.match(/\d+/);
-  return match ? Number(match[0]) : 1;
-}

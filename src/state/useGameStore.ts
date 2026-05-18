@@ -4,6 +4,7 @@ export type AppScreen =
   | "home"
   | "play"
   | "upgrades"
+  | "run-upgrades"
   | "collection"
   | "buildings"
   | "heroes"
@@ -17,6 +18,22 @@ type RunSnapshot = {
   fortHp: number;
   wave: number;
   coins: number;
+  highestClearedWave: number;
+};
+
+export type RunEndSummary = {
+  reason: "defeat" | "abandon";
+  peakWave: number;
+  sessionGems: number;
+  fortBonusGems: number;
+};
+
+export type LastRunStatus = "none" | "active" | "lost" | "abandoned";
+
+export type LastRunSummary = {
+  peakWave: number;
+  status: LastRunStatus;
+  sessionGems: number;
 };
 
 export type PermanentUpgradeId = "fortHp" | "startingCoins" | "towerDamage";
@@ -59,6 +76,8 @@ type PlayerProgress = {
   selectedHeroId: string;
   selectedMapId: string;
   permanentUpgrades: Record<PermanentUpgradeId, number>;
+  soundEnabled: boolean;
+  musicEnabled: boolean;
 };
 
 type GameStore = {
@@ -67,9 +86,15 @@ type GameStore = {
   musicEnabled: boolean;
   run: RunSnapshot;
   progress: PlayerProgress;
+  lastRun: LastRunSummary;
+  runEndSummary: RunEndSummary | null;
   setActiveScreen: (screen: AppScreen) => void;
   setRunSnapshot: (snapshot: RunSnapshot) => void;
-  claimRunRewards: (wave: number, coins: number) => number;
+  beginRun: () => void;
+  recordWaveClear: (wave: number) => number;
+  claimRunRewards: (wave: number, coins: number, highestClearedWave: number) => number;
+  forfeitRun: (currentWave: number, highestClearedWave: number) => void;
+  dismissRunEndSummary: () => void;
   buyPermanentUpgrade: (id: PermanentUpgradeId) => boolean;
   selectHero: (id: string, unlockWave: number) => boolean;
   selectMap: (id: string, unlockWave: number) => boolean;
@@ -88,9 +113,29 @@ const defaultProgress: PlayerProgress = {
     startingCoins: 0,
     towerDamage: 0,
   },
+  soundEnabled: true,
+  musicEnabled: true,
+};
+
+const defaultLastRun: LastRunSummary = {
+  peakWave: 0,
+  status: "none",
+  sessionGems: 0,
 };
 
 const saveKey = "mergehold-td-progress-v1";
+
+function waveClearGemDrip(wave: number) {
+  return Math.max(3, Math.floor(wave * 2));
+}
+
+function fortLossGemBonus(wave: number, coins: number) {
+  return Math.max(8, Math.floor(wave * 12 + coins * 0.08));
+}
+
+export function previewFortLossBonus(wave: number, coins: number) {
+  return fortLossGemBonus(wave, coins);
+}
 
 function loadProgress() {
   if (typeof window === "undefined") return defaultProgress;
@@ -107,6 +152,8 @@ function loadProgress() {
         ...defaultProgress.permanentUpgrades,
         ...parsed.permanentUpgrades,
       },
+      soundEnabled: typeof parsed.soundEnabled === "boolean" ? parsed.soundEnabled : defaultProgress.soundEnabled,
+      musicEnabled: typeof parsed.musicEnabled === "boolean" ? parsed.musicEnabled : defaultProgress.musicEnabled,
     } satisfies PlayerProgress;
   } catch {
     return defaultProgress;
@@ -118,31 +165,106 @@ function saveProgress(progress: PlayerProgress) {
   window.localStorage.setItem(saveKey, JSON.stringify(progress));
 }
 
+const initialProgress = loadProgress();
+
 export const useGameStore = create<GameStore>((set) => ({
   activeScreen: "home",
-  soundEnabled: true,
-  musicEnabled: true,
+  soundEnabled: initialProgress.soundEnabled,
+  musicEnabled: initialProgress.musicEnabled,
   run: {
     fortHp: 100,
     wave: 1,
     coins: 80,
+    highestClearedWave: 0,
   },
-  progress: loadProgress(),
+  progress: initialProgress,
+  lastRun: defaultLastRun,
+  runEndSummary: null,
   setActiveScreen: (screen) => set({ activeScreen: screen }),
   setRunSnapshot: (snapshot) => set({ run: snapshot }),
-  claimRunRewards: (wave, coins) => {
-    const reward = Math.max(8, Math.floor(wave * 12 + coins * 0.08));
+  beginRun: () => set({
+    runEndSummary: null,
+    lastRun: {
+      peakWave: 0,
+      status: "active",
+      sessionGems: 0,
+    },
+  }),
+  recordWaveClear: (wave) => {
+    const drip = waveClearGemDrip(wave);
     set((state) => {
       const nextProgress = {
         ...state.progress,
         bestWave: Math.max(state.progress.bestWave, wave),
+        softCurrency: state.progress.softCurrency + drip,
+      };
+      saveProgress(nextProgress);
+      return {
+        progress: nextProgress,
+        lastRun: {
+          peakWave: Math.max(state.lastRun.peakWave, wave),
+          status: "active",
+          sessionGems: state.lastRun.sessionGems + drip,
+        },
+      };
+    });
+    return drip;
+  },
+  claimRunRewards: (wave, coins, highestClearedWave) => {
+    const reward = fortLossGemBonus(wave, coins);
+    set((state) => {
+      const nextProgress = {
+        ...state.progress,
+        bestWave: Math.max(state.progress.bestWave, highestClearedWave),
         softCurrency: state.progress.softCurrency + reward,
       };
       saveProgress(nextProgress);
-      return { progress: nextProgress };
+      const sessionGems = state.lastRun.sessionGems + reward;
+      return {
+        progress: nextProgress,
+        lastRun: {
+          peakWave: Math.max(state.lastRun.peakWave, highestClearedWave, wave),
+          status: "lost",
+          sessionGems,
+        },
+        runEndSummary: {
+          reason: "defeat",
+          peakWave: Math.max(state.lastRun.peakWave, highestClearedWave, wave),
+          sessionGems,
+          fortBonusGems: reward,
+        },
+      };
     });
     return reward;
   },
+  forfeitRun: (currentWave, highestClearedWave) => {
+    set((state) => {
+      const peak = Math.max(highestClearedWave, currentWave > 1 ? currentWave - 1 : 0, 1);
+      const nextProgress = {
+        ...state.progress,
+        bestWave: Math.max(state.progress.bestWave, highestClearedWave),
+      };
+      if (nextProgress.bestWave !== state.progress.bestWave) {
+        saveProgress(nextProgress);
+      }
+      const sessionGems = state.lastRun.sessionGems;
+      return {
+        progress: nextProgress,
+        lastRun: {
+          peakWave: peak,
+          status: "abandoned",
+          sessionGems,
+        },
+        runEndSummary: {
+          reason: "abandon",
+          peakWave: peak,
+          sessionGems,
+          fortBonusGems: 0,
+        },
+      };
+    });
+  },
+  dismissRunEndSummary: () => set({ runEndSummary: null }),
   buyPermanentUpgrade: (id) => {
     let didBuy = false;
     set((state) => {
@@ -197,10 +319,36 @@ export const useGameStore = create<GameStore>((set) => ({
     });
     return didSelect;
   },
-  resetProgress: () => set(() => {
-    saveProgress(defaultProgress);
-    return { progress: defaultProgress };
+  resetProgress: () => set((state) => {
+    const nextProgress = {
+      ...defaultProgress,
+      soundEnabled: state.progress.soundEnabled,
+      musicEnabled: state.progress.musicEnabled,
+    };
+    saveProgress(nextProgress);
+    return {
+      progress: nextProgress,
+      lastRun: defaultLastRun,
+      runEndSummary: null,
+      soundEnabled: nextProgress.soundEnabled,
+      musicEnabled: nextProgress.musicEnabled,
+    };
   }),
-  toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
-  toggleMusic: () => set((state) => ({ musicEnabled: !state.musicEnabled })),
+  toggleSound: () => set((state) => {
+    const soundEnabled = !state.soundEnabled;
+    const nextProgress = { ...state.progress, soundEnabled };
+    saveProgress(nextProgress);
+    return { soundEnabled, progress: nextProgress };
+  }),
+  toggleMusic: () => set((state) => {
+    const musicEnabled = !state.musicEnabled;
+    const nextProgress = { ...state.progress, musicEnabled };
+    saveProgress(nextProgress);
+    return { musicEnabled, progress: nextProgress };
+  }),
 }));
+
+export function getUnlockWave(unlock: string) {
+  const match = unlock.match(/\d+/);
+  return match ? Number(match[0]) : 1;
+}

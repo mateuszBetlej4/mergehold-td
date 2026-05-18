@@ -134,3 +134,48 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Rotate towers, enemies, troops, and directional projectiles using a `spriteFacingOffset` map keyed by texture name, plus `rotateSpriteToward()` with `Angle.RotateTo` smoothing. Kenney units face up or right at rotation 0 depending on asset; offsets were set per inspected sprite.
 - **Reasoning:** Phaser angle 0 is east; art-forward varies by file. Central map avoids wrong 90° facing and documents tuning in `docs/GRAPHICS.md`.
+
+## DEC-020: Hybrid Meta Rewards (Wave Clear + Fort Loss)
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** On each wave clear, persist `bestWave` to the cleared wave and bank a small gem drip (`max(3, floor(wave * 2))`). Fort loss adds a separate completion bonus (`max(8, floor(wave * 12 + coins * 0.08))`). Leaving run via Home calls `forfeitRun`: keep wave-clear progress and drips already earned; no completion bonus. Hero/map unlock gates use highest **cleared** wave (`bestWave`), matching “Clear wave N” copy.
+- **Reasoning:** Fixes misleading unlocks and zero-gem mid-run exits. Completion bonus still rewards full runs that end in fort loss.
+- **Implemented:** 2026-05-18 — `useGameStore.recordWaveClear`, `forfeitRun`, `claimRunRewards`, `runEndSummary`; `RunScene.showUpgradeChoice`; meta + run UI (BUG-006/008/009). Leave/end-run UX: DEC-024 (BUG-007/016).
+
+## DEC-021: Kenney Runner / Tank / Shield Facing Offset
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Set `spriteFacingOffset` to `+π/2` for `kenney-enemy-runner`, `kenney-enemy-tank`, and `kenney-enemy-shield` (art faces **up** at Phaser rotation 0). Keep `kenney-enemy-grunt` at `0` (art faces **right**). Boss and SVG bat/bomber keys unchanged at `+π/2`.
+- **Reasoning:** Graphics QA (BUG-017 / AUD-014) found vertical-path segments showed sideways facing when offsets assumed all Kenney PNGs face east. Table in `docs/GRAPHICS.md` updated to match `RunScene.ts`.
+
+## DEC-022: Audio Settings In Progress Blob; Deploy Dev-Only
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Persist `soundEnabled` and `musicEnabled` inside `mergehold-td-progress-v1` (same `PlayerProgress` blob as gems/upgrades). Gate Home Deploy navigation and a Settings shortcut behind `import.meta.env.DEV` so production builds omit player-facing deployment scaffolding.
+- **Reasoning:** One localStorage key keeps meta and settings in sync; Vite strips dead DEV branches from prod bundles. Reset save clears progression but keeps audio prefs unless product says otherwise.
+
+## DEC-023: Menu Catalog Sprites Mirror Run Asset Keys
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Collection/catalog thumbnails use `src/app/catalogSprites.ts` (`getCatalogSprite`) with the same tower/enemy key table as `RunScene.ts`, rendered via `CatalogThumb` in React. Roguelike upgrade defs get a dedicated **Run upgrades** screen (`run-upgrades`); permanent gem shop stays on nav **Upgrades** only.
+- **Reasoning:** Reuses existing `optimized/sprites` without new packs; avoids letter placeholders and separates in-run upgrade catalog from meta shop (AUD-008–010).
+
+## DEC-024: Roguelike Leave Flow — Confirm Abandon, No Mid-Run Resume
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Leaving Play is an explicit **abandon**, not a silent reset. No `localStorage` run snapshot; unmounting `GameCanvas` still destroys Phaser and the next Play starts wave 1. Before leave: `PlayHud` shows a confirm dialog (also when exiting Play via bottom nav / `navigateTo`). On confirm: `forfeitRun()` — keep wave-clear gems and `bestWave` already earned (DEC-020); no fort-death bonus. End-of-run feedback is **React-only**: `RunEndSummaryModal` driven by `runEndSummary` in Zustand for both abandon and fort loss; Phaser “FORT LOST” overlay removed. Defeat offers **Play again** (`restartRun` bridge) and **Home**; abandon offers **Home** only.
+- **Reasoning:** Closes AUD-006/007/015 (BUG-007, BUG-016) without high-effort run serialization. Players see forfeit rules before losing progress; reward feedback is consistent whether they leave or lose.
+- **Implemented:** 2026-05-18 — `PlayHud.tsx`, `App.tsx` (`navigateTo`, `RunEndSummaryModal`), `useGameStore.forfeitRun` / `runEndSummary`, `RunScene` `isGameOver` + `runEnded` emit; `npm run build`; browser @ 390×844 (confirm → stay/leave, summary modal, fresh re-enter).
+
+## DEC-025: Tiered Wave Enemy Mix (Bat / Bomber)
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** `getWaveEnemyMix()` uses a cumulative tier table: wave 1 grunt only; wave 2+ runner; wave 4+ tank and shield; wave 6+ bat; wave 8+ bomber; every 5th wave (5, 10, …) gatebreaker boss only (DEC-015). HP scaling `definition.hp + wave * 6` unchanged.
+- **Reasoning:** Closes AUD-011 / BUG-013. Bat and bomber were defined and asset-mapped (DEC-017) but never selected for spawn. Staggered intro avoids dumping all archetypes on wave 4; boss waves stay milestone fights.
+- **Implemented:** 2026-05-18 — `RunScene.ts` `getWaveEnemyMix()`; `npm run build`; browser @ 390×844 @ 1.5× through wave 6+ (W5 boss-only confirmed).

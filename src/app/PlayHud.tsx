@@ -8,9 +8,21 @@ import {
 import { useGameStore } from "../state/useGameStore";
 import "./PlayHud.css";
 
-export function PlayHud() {
-  const setActiveScreen = useGameStore((state) => state.setActiveScreen);
+type PlayHudProps = {
+  leaveConfirmOpen: boolean;
+  onRequestLeave: () => void;
+  onCancelLeave: () => void;
+  onConfirmLeave: () => void;
+};
+
+export function PlayHud({
+  leaveConfirmOpen,
+  onRequestLeave,
+  onCancelLeave,
+  onConfirmLeave,
+}: PlayHudProps) {
   const [ui, setUi] = useState<RunUiState | null>(null);
+  const sessionGems = useGameStore((state) => state.lastRun.sessionGems);
 
   useEffect(() => {
     const onState = (state: unknown) => setUi(state as RunUiState);
@@ -22,18 +34,59 @@ export function PlayHud() {
 
   const nextWaveToStart = ui.wave + 1;
 
+  const handleHome = () => {
+    if (ui.isGameOver) {
+      onConfirmLeave();
+      return;
+    }
+    onRequestLeave();
+  };
+
   return (
     <div
       className={`play-hud ${ui.isChoosingUpgrade ? "play-hud--upgrade" : ""}`}
       aria-label="Run controls"
     >
+      {leaveConfirmOpen ? (
+        <div
+          className="play-hud__modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-run-title"
+        >
+          <div className="play-hud__modal">
+            <h2 id="leave-run-title">Leave run?</h2>
+            <p>
+              This run ends and cannot be resumed. You keep{" "}
+              <strong>{sessionGems} gems</strong> from cleared waves. Fort-death bonus does not apply.
+            </p>
+            <p className="play-hud__modal-meta">
+              Wave {ui.wave}
+              {ui.highestClearedWave > 0 ? ` · Cleared W${ui.highestClearedWave}` : ""}
+            </p>
+            <div className="play-hud__modal-actions">
+              <button type="button" className="play-hud__modal-btn" onClick={onCancelLeave}>
+                Stay
+              </button>
+              <button
+                type="button"
+                className="play-hud__modal-btn play-hud__modal-btn--danger"
+                onClick={onConfirmLeave}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <header className="play-hud__top">
         <div className="play-hud__controls">
           <button
             type="button"
             className="play-hud__icon-btn"
             aria-label="Leave run"
-            onClick={() => setActiveScreen("home")}
+            onClick={handleHome}
           >
             <Home size={16} />
           </button>
@@ -41,6 +94,7 @@ export function PlayHud() {
             type="button"
             className={`play-hud__icon-btn ${ui.isPaused ? "is-active" : ""}`}
             aria-label={ui.isPaused ? "Resume" : "Pause"}
+            disabled={ui.isGameOver}
             onClick={() => gameBridge.emit("togglePause")}
           >
             {ui.isPaused ? <Play size={14} /> : <Pause size={14} />}
@@ -49,7 +103,7 @@ export function PlayHud() {
             type="button"
             className="play-hud__icon-btn"
             aria-label="Toggle speed"
-            disabled={ui.isPaused}
+            disabled={ui.isPaused || ui.isGameOver}
             onClick={() => gameBridge.emit("toggleSpeed")}
           >
             {ui.runSpeed}x
@@ -78,7 +132,7 @@ export function PlayHud() {
       {ui.toast ? <div className="play-hud__toast">{ui.toast}</div> : null}
 
       <footer className={`play-hud__dock ${ui.isChoosingUpgrade ? "play-hud__dock--dimmed" : ""}`}>
-        {ui.waitingToStartWave && !ui.isChoosingUpgrade ? (
+        {ui.waitingToStartWave && !ui.isChoosingUpgrade && !ui.isGameOver ? (
           <button type="button" className="play-hud__start-wave" onClick={() => gameBridge.emit("startWave")}>
             Start wave {nextWaveToStart}
           </button>
@@ -109,6 +163,7 @@ export function PlayHud() {
                 type="button"
                 className={`play-hud__chip ${tower.selected ? "is-selected" : ""}`}
                 style={{ backgroundColor: `${colorToCss(tower.color)}33` }}
+                disabled={ui.isGameOver}
                 onClick={() => gameBridge.emit("selectTower", tower.index)}
               >
                 <img src={`/assets/optimized/sprites/${tower.sprite}.png`} alt="" />
@@ -119,7 +174,7 @@ export function PlayHud() {
             <button
               type="button"
               className={`play-hud__ability ${ui.abilityReady ? "is-ready" : ""}`}
-              disabled={!ui.abilityReady}
+              disabled={!ui.abilityReady || ui.isGameOver}
               onClick={() => gameBridge.emit("useAbility")}
             >
               {ui.abilityReady ? ui.abilityLabel : `${ui.abilityCooldownSec}s`}
@@ -133,7 +188,7 @@ export function PlayHud() {
                 type="button"
                 className={`play-hud__chip ${struct.selected ? "is-selected" : ""} ${struct.unlocked ? "" : "is-locked"}`}
                 style={{ backgroundColor: struct.unlocked ? `${colorToCss(struct.color)}33` : undefined }}
-                disabled={!struct.unlocked}
+                disabled={!struct.unlocked || ui.isGameOver}
                 onClick={() => gameBridge.emit("selectStruct", struct.mode)}
               >
                 <img src={`/assets/optimized/sprites/${struct.sprite}.svg`} alt="" />
@@ -167,5 +222,3 @@ function DockTab({
     </button>
   );
 }
-
-
