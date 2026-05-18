@@ -371,7 +371,7 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Deploy the Vite frontend to Vercel with Supabase Auth and `player_saves` cloud persistence enabled. Keep localStorage as the guest/offline cache, then merge local and cloud progress on sign-in before upserting back to Supabase.
 - **Infrastructure:** Vercel project `mergehold-td`; Supabase project `ASAP-MOB-FC` (`xbfkgvfnmtswygxovgcy`); optional Render API target `https://mergehold-td-api.onrender.com`.
-- **Production URL:** `https://mergehold-td.vercel.app` (`dpl_24ezkqc8svnve78Nh48W83B9edWH`).
+- **Production URL:** `https://mergehold-td.vercel.app` (`dpl_9zW4pSpRtF9kVgjzJgcBo9vRYXFH`).
 - **Mapping:** `bestWave` → `best_wave`; `softCurrency` → `soft_currency`; `permanentUpgrades` → `permanent_upgrades`; audio and loadout selections → `settings`.
 - **Production gate:** `DEBUG_UNLOCK_ALL_MAPS = false`.
 - **Reasoning:** Phone testing now needs a public deployment and account-backed progress without removing the existing guest play loop.

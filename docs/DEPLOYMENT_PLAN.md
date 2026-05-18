@@ -4,7 +4,7 @@
 
 - **Vercel project:** `mergehold-td`
 - **Production URL:** `https://mergehold-td.vercel.app`
-- **Latest deployment:** `https://mergehold-9eclg093m-mateuszbetlej4s-projects.vercel.app`
+- **Latest deployment:** `https://mergehold-el3rb0nqg-mateuszbetlej4s-projects.vercel.app`
 - **Supabase project:** `ASAP-MOB-FC` (`xbfkgvfnmtswygxovgcy`)
 - **Supabase URL:** `https://xbfkgvfnmtswygxovgcy.supabase.co`
 - **Render API target:** `https://mergehold-td-api.onrender.com`
