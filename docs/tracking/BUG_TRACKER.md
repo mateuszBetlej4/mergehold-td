@@ -47,14 +47,14 @@ Verification:
 ---
 
 ID: BUG-021
-Title: FEATURE_SPEC permanent upgrades (troop HP, coin gain, reroll) not in gem shop
+Title: FEATURE_SPEC permanent upgrades (troop HP, upgrade reroll) not in gem shop
 Status: New
 Severity: S3
 Area: Meta / Balance
 Found in: Game balancing pass 2026-05-18
-Owner: Unassigned
+Owner: Economy agent
 Date opened: 2026-05-18
-Related issue: DEC-030, FEATURE_SPEC.md § Permanent Upgrades
+Related issue: DEC-030, DEC-031, FEATURE_SPEC.md § Permanent Upgrades
 
 Steps to reproduce:
 1. Open Permanent Upgrades (nav or Home).
@@ -64,13 +64,13 @@ Expected:
 Shop includes fort HP, starting coins, tower damage, troop health, coin gain, and upgrade reroll chance.
 
 Actual:
-Only `fortHp`, `startingCoins`, and `towerDamage` exist in `permanentUpgradeDefinitions` (`useGameStore.ts`).
+`fortHp`, `startingCoins`, `towerDamage`, and **`coinGain` (Merchant's Ledger)** exist. Troop health and upgrade reroll still missing.
 
 Notes:
-Out of balancing handoff scope; meta UX unchanged per agent brief.
+**DEC-031 (2026-05-18):** `coinGain` implemented (+5% kill rewards/level, 40 gem base). Troop HP + reroll deferred — combat/UX scope.
 
 Verification:
-N/A — deferred.
+Open Upgrades → Merchant's Ledger row visible; buy applies `rewardMultiplier` in `RunScene.applyLoadout`.
 
 ---
 

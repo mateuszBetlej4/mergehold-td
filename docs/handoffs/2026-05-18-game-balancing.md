@@ -295,4 +295,6 @@ Full reference for designers and future agents:
 
 **[`docs/balance/GAME_BALANCE.md`](../balance/GAME_BALANCE.md)** — spawn tables, formulas, enemy/tower stats, upgrades, meta gems, TTK notes, and deferred gaps.
 
+**Economy follow-up:** [`docs/handoffs/2026-05-18-economy.md`](./2026-05-18-economy.md) — dedicated agent brief for coin/gem tuning and shop pacing.
+
 ---

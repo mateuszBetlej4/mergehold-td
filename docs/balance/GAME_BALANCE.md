@@ -1,7 +1,8 @@
 # Mergehold TD — Game Balance Reference
 
 > **Last updated:** 2026-05-18  
-> **Policy decisions:** [DEC-029](../tracking/DECISION_LOG.md#dec-029-wave-spawn-tables--combat-ability-pass), [DEC-030](../tracking/DECISION_LOG.md#dec-030-distinct-upgrade--enemy-combat-behaviors)  
+> **Policy decisions:** [DEC-029](../tracking/DECISION_LOG.md#dec-029-wave-spawn-tables--combat-ability-pass), [DEC-030](../tracking/DECISION_LOG.md#dec-030-distinct-upgrade--enemy-combat-behaviors), [DEC-032](../tracking/DECISION_LOG.md#dec-032-combat--economy-sink-pass)  
+> **Economy agent handoff:** [2026-05-18-economy.md](../handoffs/2026-05-18-economy.md) — coin/gem research workflow and tuning scope  
 > **Playtest viewport:** 390×844 mobile portrait  
 > **Runtime owner:** `src/game/scenes/RunScene.ts` applies all formulas below; `src/data/*` holds base numbers.
 
@@ -44,18 +45,18 @@ These guided the 2026-05-18 balance pass:
 
 | ID | Archetype | Base HP | Speed× | Reward | Fort dmg (base) | Ability |
 |----|-----------|--------:|-------:|-------:|----------------:|---------|
-| grunt | grunt | 30 | 1.00 | 5 | 7 | — |
-| runner | runner | 20 | 1.65 | 6 | 5 | Fast |
-| tank | tank | 110 | 0.62 | 14 | 12 | High HP |
-| shield | shield | 78 | 0.86 | 10 | 9 | Armor (50% vs archer) |
+| grunt | grunt | 30 | 1.00 | 6 | 7 | — |
+| runner | runner | 20 | 1.65 | 7 | 5 | Fast |
+| tank | tank | 115 | 0.62 | 14 | 12 | High HP |
+| shield | shield | 82 | 0.86 | 10 | 9 | Armor (50% vs archer) |
 | bat | flyer | 26 | 1.45 | 8 | 6 | Flying (ignores traps) |
 | bomber | exploder | 54 | 1.05 | 11 | 18 | Explodes at fort |
-| gatebreaker | boss | 480 | 0.48 | 90 | 35 | Boss |
+| gatebreaker | boss | 520 | 0.48 | 115 | 35 | Boss |
 
 ### 3.2 Runtime scaling (on spawn)
 
 ```text
-maxHp     = baseHp + wave × 5
+maxHp     = baseHp + wave × 6
 speed     = (0.046 + wave × 0.0015) × definition.speed
 reward    = ceil(baseReward × rewardMultiplier)   // starts at 1.0
 damageToFort = ceil(baseFortDamage × 0.55)
@@ -65,13 +66,13 @@ damageToFort = ceil(baseFortDamage × 0.55)
 
 | Enemy | W1 | W5 | W10 | W15 |
 |-------|---:|---:|----:|----:|
-| grunt | 35 | 55 | 80 | 105 |
-| runner | 25 | 45 | 70 | 95 |
-| tank | 115 | 135 | 160 | 185 |
-| shield | 83 | 103 | 128 | 153 |
-| bat | 31 | 51 | 76 | 101 |
-| bomber | 59 | 79 | 104 | 129 |
-| gatebreaker | 485 | **505** | 530 | 555 |
+| grunt | 36 | 60 | 90 | 120 |
+| runner | 26 | 50 | 80 | 110 |
+| tank | 121 | 145 | 175 | 205 |
+| shield | 88 | 112 | 142 | 172 |
+| bat | 32 | 56 | 86 | 116 |
+| bomber | 60 | 84 | 114 | 144 |
+| gatebreaker | 526 | **550** | 580 | 610 |
 
 **Example fort damage per leak (after ×0.55)**
 
@@ -130,12 +131,12 @@ Total enemies = sum of `count` in all groups. Spawn stagger = cumulative `interv
 | 1 | 6 | G6 |
 | 2 | 8 | G5 R3 |
 | 3 | 10 | G4 R6 |
-| 4 | 10 | G3 R3 T2 D2 |
+| 4 | 11 | G3 R3 T2 D3 |
 | 5 | 1 | **Boss×1** |
 | 6 | 11 | G4 R4 F3 |
-| 7 | 15 | G4 R4 T2 D2 F3 |
-| 8 | 16 | G3 R4 T2 D2 F3 X2 |
-| 9 | 20 | G4 R5 T2 D3 F4 X2 |
+| 7 | 16 | G4 R5 T2 D2 F3 |
+| 8 | 17 | G3 R4 T2 D2 F3 X3 |
+| 9 | 21 | G4 R5 T3 D3 F4 X2 |
 | 10 | 1 | **Boss×1** |
 | 11 | 25 | G5 R5 T3 D3 F4 X3 |
 | 12 | 27 | G5 R6 T3 D3 F5 X3 |
@@ -170,15 +171,15 @@ Old `getWaveEnemyMix()` used `count = min(6, 1 + wave)` **per archetype** in the
 
 | Tower | Cost | Damage | Range | Fire rate | Extra |
 |-------|-----:|-------:|------:|----------:|-------|
-| Archer (A) | 20 | 16 | 166 | 520ms | Single target |
-| Cannon (C) | 35 | 28 | 136 | 900ms | Splash radius 42 (see §6) |
-| Magic (M) | 45 | 22 | 154 | 680ms | Ignores armor; priority targeting with upgrade |
+| Archer (A) | 30 | 16 | 166 | 520ms | Single target |
+| Cannon (C) | 52 | 28 | 136 | 900ms | Splash radius 42 (see §6) |
+| Magic (M) | 65 | 22 | 154 | 680ms | Ignores armor; priority targeting with upgrade |
 
 Place: tap tower in dock → tap `+` pad. Unlock: A W1, C W2, M W3.
 
 ### 5.2 Tier upgrades (in-run)
 
-- **Cost:** 15 coins per tier bump on same pad.
+- **Cost:** `padTierUpgradeCost` (25 coins) per tier bump on same pad (`buildings.ts`).
 - **Max tier:** 5 (towers).
 - **Per tier:** `damage += 8 × towerDamageMultiplier`, `range += 4`.
 
@@ -218,12 +219,12 @@ splashDamage  = max(1, round(primaryDamage × 0.45))
 
 | Stat | Value |
 |------|------:|
-| Cost | 25 |
+| Cost | 35 |
 | Unlock | Wave 2 |
 | Base damage | 10 × tier × `towerDamageMultiplier` |
 | Cooldown | 500ms |
 | Max tier | 4 |
-| Pad upgrade | 15 coins/tier |
+| Pad upgrade | 25 coins/tier |
 
 Trigger radius grows with tier (`34 + tier × 3`). **Does not affect flyers (bat).**
 
@@ -231,7 +232,7 @@ Trigger radius grows with tier (`34 + tier × 3`). **Does not affect flyers (bat
 
 | Stat | Value |
 |------|------:|
-| Cost | 30 |
+| Cost | 42 |
 | `fortShield` | 18 × tier per wall |
 | Refresh | Shield pool refilled to max at start of each new wave |
 
@@ -241,15 +242,15 @@ Damage hits shield first, then fort HP.
 
 | Stat | Value |
 |------|------:|
-| Cost | 40 |
+| Cost | 52 |
 | Unlock | Wave 3 |
-| Income | `12 × tier` coins per wave clear (in upgrade overlay) |
+| Income | `15 × tier` coins per wave clear (in upgrade overlay) |
 
 ### 7.4 Barracks
 
 | Stat | Value |
 |------|------:|
-| Cost | 55 |
+| Cost | 70 |
 | Unlock | Wave 4 |
 | Spawn rate | `3600ms` base, scales down with tier |
 | Max troops | 10 on field |
@@ -266,7 +267,7 @@ Troop stats: `troops.ts` + `barracks.stats.troopHp`, tier bonus `1 + (tier-1)×0
 
 | Stat | Value |
 |------|------:|
-| Cost | 60 |
+| Cost | 78 |
 | Unlock | Wave 5 |
 | Repair | `12 × tier` fort HP after clearing a **boss wave** (`wave % 5 === 0`) |
 
@@ -274,7 +275,7 @@ Troop stats: `troops.ts` + `barracks.stats.troopHp`, tier bonus `1 + (tier-1)×0
 
 ## 8. Roguelike upgrades (in-run)
 
-Offered **3 random cards** from all 6 definitions (equal weight — [BUG-022](../tracking/BUG_TRACKER.md)). Picking one grants **+30 coins** and pauses until **Start Wave**.
+Offered **3 random cards** from all 6 definitions (equal weight — [BUG-022](../tracking/BUG_TRACKER.md)). Picking one grants **+25 coins** (+35 on boss waves) and pauses until **Start Wave**.
 
 | Card | Rarity | Target | Effect |
 |------|--------|--------|--------|
@@ -310,10 +311,11 @@ Shop: `permanentUpgradeDefinitions` in `useGameStore.ts`.
 | fortHp | Fort Masonry | 35 | `maxFortHp = 180 + level × 18` |
 | startingCoins | War Chest | 30 | `coins = 150 + level × 15` |
 | towerDamage | Sharper Tools | 45 | `towerDamageMultiplier = 1 + level × 0.08` |
+| coinGain | Merchant's Ledger | 40 | `rewardMultiplier = 1 + level × 0.05` (stacks with mage / Gold Rush) |
 
 **Buy cost:** `baseCost + currentLevel × baseCost` (e.g. Fort Masonry L0→L1 = 35 gems).
 
-**Not implemented** (FEATURE_SPEC only — [BUG-021](../tracking/BUG_TRACKER.md)): troop health, coin gain, upgrade reroll.
+**Not implemented** (FEATURE_SPEC only — [BUG-021](../tracking/BUG_TRACKER.md)): troop health, upgrade reroll.
 
 ---
 
@@ -322,7 +324,7 @@ Shop: `permanentUpgradeDefinitions` in `useGameStore.ts`.
 | Event | Formula |
 |-------|---------|
 | Wave clear drip | `max(3, floor(wave × 2))` gems — banked on overlay; kept on forfeit |
-| Fort loss bonus | `max(8, floor(wave × 12 + coins × 0.08))` — on defeat only |
+| Fort loss bonus | `max(8, floor(wave × 12 + min(24, floor(coins × 0.04))))` — on defeat only ([DEC-031](../tracking/DECISION_LOG.md#dec-031-economy-rebalance--coin-ledger)) |
 | Forfeit | Keeps wave-clear drip already earned; no fort bonus |
 
 See **DEC-020** in decision log.
@@ -335,27 +337,27 @@ See **DEC-020** in decision log.
 |--------|--------|
 | Run start | `150 + permanentStartingCoins + mageBonus(25)` |
 | Kill reward | Enemy `reward` × `rewardMultiplier` |
-| Wave clear pick | +30 after choosing upgrade |
-| Coin mills | `12 × tier` per mill each wave clear |
+| Wave clear pick | +25 after choosing upgrade (+10 extra on boss waves) |
+| Coin mills | `15 × tier` per mill each wave clear |
 | Unknown upgrade target | +25 (fallback `default` case) |
 
-**Typical spends:** tower $20–45, pad tier 15, support $25–60.
+**Typical spends:** towers 30–65, pad tier 25, support 35–78.
 
 ---
 
 ## 13. TTK reference (theory)
 
-Single **T1 archer** (16 dmg, 520ms) vs grunt @ wave 1 (35 HP):
+Single **T1 archer** (16 dmg, 520ms) vs grunt @ wave 1 (36 HP):
 
 ```text
-shots to kill = ceil(35 / 16) = 3
+shots to kill = ceil(36 / 16) = 3
 time ≈ 3 × 0.52s = 1.56s (if always in range from first shot)
 ```
 
-Gatebreaker @ wave 5 (505 HP), one T1 archer (~31 DPS):
+Gatebreaker @ wave 5 (550 HP), one T1 archer (~31 DPS):
 
 ```text
-time ≈ 505 / 31 ≈ 16s continuous fire
+time ≈ 550 / 31 ≈ 18s continuous fire
 ```
 
 Expect 2–3 towers or tiers for comfortable boss kills.
@@ -379,7 +381,7 @@ Expect 2–3 towers or tiers for comfortable boss kills.
 
 | Item | Tracker |
 |------|---------|
-| Permanent upgrades: troop HP, coin gain, reroll | [BUG-021](../tracking/BUG_TRACKER.md) |
+| Permanent upgrades: troop HP, upgrade reroll | [BUG-021](../tracking/BUG_TRACKER.md) |
 | Roguelike rarity-weighted picks | [BUG-022](../tracking/BUG_TRACKER.md) |
 | Remote / live tuning | Future (FEATURE_SPEC) |
 
@@ -392,6 +394,8 @@ Expect 2–3 towers or tiers for comfortable boss kills.
 | 2026-05-18 | **DEC-029:** `waves.ts` wired to runtime; spawn budget fix; HP `+wave×5`; enemy HP tune (tank/shield/boss/grunt). |
 | 2026-05-18 | **DEC-030:** Shield armor, bat flyer, bomber explode, cannon splash, magic priority, archer-only Sharp Arrows. |
 | 2026-05-18 | **DEC-025:** Tiered enemy introduction (superseded spawn *count* logic in DEC-029). |
+| 2026-05-18 | **DEC-031:** Economy pass — grunt/runner/boss rewards, mill income 15, stipend 35 + boss bonus, fort gem coin cap, Merchant's Ledger meta upgrade. |
+| 2026-05-18 | **DEC-032:** Combat/economy sinks — higher build/tier costs, HP scale `+wave×6`, tank/shield/boss HP, wave 4/7–9 pressure, stipend 25+10 boss. |
 
 ---
 

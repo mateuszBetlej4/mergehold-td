@@ -36,7 +36,7 @@ export type LastRunSummary = {
   sessionGems: number;
 };
 
-export type PermanentUpgradeId = "fortHp" | "startingCoins" | "towerDamage";
+export type PermanentUpgradeId = "fortHp" | "startingCoins" | "towerDamage" | "coinGain";
 
 type PermanentUpgrade = {
   id: PermanentUpgradeId;
@@ -67,6 +67,13 @@ export const permanentUpgradeDefinitions: PermanentUpgrade[] = [
     description: "Increase all tower damage.",
     baseCost: 45,
     valuePerLevel: 0.08,
+  },
+  {
+    id: "coinGain",
+    name: "Merchant's Ledger",
+    description: "Earn more coins from enemy kills.",
+    baseCost: 40,
+    valuePerLevel: 0.05,
   },
 ];
 
@@ -112,6 +119,7 @@ const defaultProgress: PlayerProgress = {
     fortHp: 0,
     startingCoins: 0,
     towerDamage: 0,
+    coinGain: 0,
   },
   soundEnabled: true,
   musicEnabled: true,
@@ -130,7 +138,8 @@ function waveClearGemDrip(wave: number) {
 }
 
 function fortLossGemBonus(wave: number, coins: number) {
-  return Math.max(8, Math.floor(wave * 12 + coins * 0.08));
+  const coinTerm = Math.min(24, Math.floor(coins * 0.04));
+  return Math.max(8, Math.floor(wave * 12 + coinTerm));
 }
 
 export function previewFortLossBonus(wave: number, coins: number) {

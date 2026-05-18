@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { buildingDefinitions } from "../../data/buildings";
+import { buildingDefinitions, padTierUpgradeCost } from "../../data/buildings";
 import { enemyDefinitions, type EnemyDefinition } from "../../data/enemies";
 import { heroDefinitions } from "../../data/heroes";
 import { mapDefinitions } from "../../data/maps";
@@ -616,8 +616,8 @@ export class RunScene extends Phaser.Scene {
         return;
       }
 
-      if (this.coins >= 15 && existingTower.tier < 5) {
-        this.coins -= 15;
+      if (this.coins >= padTierUpgradeCost && existingTower.tier < 5) {
+        this.coins -= padTierUpgradeCost;
         existingTower.tier += 1;
         existingTower.damage += 8 * this.towerDamageMultiplier;
         existingTower.range += 4;
@@ -629,7 +629,7 @@ export class RunScene extends Phaser.Scene {
       } else if (existingTower.tier >= 5) {
         this.showToast("Tower is already max tier");
       } else {
-        this.showToast("Need 15 coins to upgrade");
+        this.showToast(`Need ${padTierUpgradeCost} coins to upgrade`);
       }
       return;
     }
@@ -679,8 +679,8 @@ export class RunScene extends Phaser.Scene {
 
     if (existingTrap) {
       const maxTier = spikeTrapDefinition.maxTier;
-      if (this.coins >= 15 && existingTrap.tier < maxTier) {
-        this.coins -= 15;
+      if (this.coins >= padTierUpgradeCost && existingTrap.tier < maxTier) {
+        this.coins -= padTierUpgradeCost;
         existingTrap.tier += 1;
         existingTrap.damage = spikeTrapDefinition.stats.damage * existingTrap.tier * this.towerDamageMultiplier;
         existingTrap.cooldownMs = Math.max(
@@ -696,7 +696,7 @@ export class RunScene extends Phaser.Scene {
       } else if (existingTrap.tier >= maxTier) {
         this.showToast("Trap is already max tier");
       } else {
-        this.showToast("Need 15 coins to upgrade trap");
+        this.showToast(`Need ${padTierUpgradeCost} coins to upgrade trap`);
       }
       return;
     }
@@ -756,8 +756,8 @@ export class RunScene extends Phaser.Scene {
 
     if (existingMill) {
       const maxTier = coinMillDefinition.maxTier;
-      if (this.coins >= 15 && existingMill.tier < maxTier) {
-        this.coins -= 15;
+      if (this.coins >= padTierUpgradeCost && existingMill.tier < maxTier) {
+        this.coins -= padTierUpgradeCost;
         existingMill.tier += 1;
         existingMill.body.setScale(0.48 + existingMill.tier * 0.05);
         existingMill.badgeBg.setPosition(existingMill.body.x + 19, existingMill.body.y - 18);
@@ -767,7 +767,7 @@ export class RunScene extends Phaser.Scene {
       } else if (existingMill.tier >= maxTier) {
         this.showToast("Coin mill already max tier");
       } else {
-        this.showToast("Need 15 coins to upgrade mill");
+        this.showToast(`Need ${padTierUpgradeCost} coins to upgrade mill`);
       }
       return;
     }
@@ -841,8 +841,8 @@ export class RunScene extends Phaser.Scene {
 
     if (existingBarracks) {
       const maxTier = barracksDefinition.maxTier;
-      if (this.coins >= 15 && existingBarracks.tier < maxTier) {
-        this.coins -= 15;
+      if (this.coins >= padTierUpgradeCost && existingBarracks.tier < maxTier) {
+        this.coins -= padTierUpgradeCost;
         existingBarracks.tier += 1;
         existingBarracks.spawnRateMs = Math.max(
           1400,
@@ -856,7 +856,7 @@ export class RunScene extends Phaser.Scene {
       } else if (existingBarracks.tier >= maxTier) {
         this.showToast("Barracks already max tier");
       } else {
-        this.showToast("Need 15 coins to upgrade barracks");
+        this.showToast(`Need ${padTierUpgradeCost} coins to upgrade barracks`);
       }
       return;
     }
@@ -908,8 +908,8 @@ export class RunScene extends Phaser.Scene {
 
     if (existingWall) {
       const maxTier = stoneWallDefinition.maxTier;
-      if (this.coins >= 15 && existingWall.tier < maxTier) {
-        this.coins -= 15;
+      if (this.coins >= padTierUpgradeCost && existingWall.tier < maxTier) {
+        this.coins -= padTierUpgradeCost;
         existingWall.tier += 1;
         existingWall.body.setScale(0.46 + existingWall.tier * 0.05);
         existingWall.badgeBg.setPosition(existingWall.body.x + 19, existingWall.body.y - 18);
@@ -920,7 +920,7 @@ export class RunScene extends Phaser.Scene {
       } else if (existingWall.tier >= maxTier) {
         this.showToast("Wall already max tier");
       } else {
-        this.showToast("Need 15 coins to upgrade wall");
+        this.showToast(`Need ${padTierUpgradeCost} coins to upgrade wall`);
       }
       return;
     }
@@ -968,8 +968,8 @@ export class RunScene extends Phaser.Scene {
 
     if (existingShrine) {
       const maxTier = healingShrineDefinition.maxTier;
-      if (this.coins >= 15 && existingShrine.tier < maxTier) {
-        this.coins -= 15;
+      if (this.coins >= padTierUpgradeCost && existingShrine.tier < maxTier) {
+        this.coins -= padTierUpgradeCost;
         existingShrine.tier += 1;
         existingShrine.body.setScale(0.46 + existingShrine.tier * 0.05);
         existingShrine.badgeBg.setPosition(existingShrine.body.x + 19, existingShrine.body.y - 18);
@@ -979,7 +979,7 @@ export class RunScene extends Phaser.Scene {
       } else if (existingShrine.tier >= maxTier) {
         this.showToast("Shrine already max tier");
       } else {
-        this.showToast("Need 15 coins to upgrade shrine");
+        this.showToast(`Need ${padTierUpgradeCost} coins to upgrade shrine`);
       }
       return;
     }
@@ -1260,7 +1260,7 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(17);
 
-    const scaledHp = definition.hp + this.wave * 5;
+    const scaledHp = definition.hp + this.wave * 6;
 
     this.enemies.push({
       body,
@@ -1748,7 +1748,11 @@ export class RunScene extends Phaser.Scene {
     this.upgradeOverlay = undefined;
     this.isChoosingUpgrade = false;
     this.syncTimeScale();
-    this.coins += 30;
+    let stipend = 25;
+    if (this.wave % 5 === 0) {
+      stipend += 10;
+    }
+    this.coins += stipend;
     this.showToast(`${upgrade.name} gained — tap Start Wave`);
     this.waitingToStartWave = true;
     this.publishRunUiState();
@@ -1822,6 +1826,7 @@ export class RunScene extends Phaser.Scene {
     this.fortHp = this.maxFortHp;
     this.coins = 150 + permanentUpgrades.startingCoins * 15;
     this.towerDamageMultiplier = 1 + permanentUpgrades.towerDamage * 0.08;
+    this.rewardMultiplier = 1 + permanentUpgrades.coinGain * 0.05;
 
     if (selectedHero.role === "guardian") {
       this.maxFortHp += 35;

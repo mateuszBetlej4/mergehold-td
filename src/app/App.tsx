@@ -24,7 +24,16 @@ import { mapDefinitions } from "../data/maps";
 import { troopDefinitions } from "../data/troops";
 import { upgradeDefinitions } from "../data/upgrades";
 import { GameCanvas } from "../game/GameCanvas";
+import { CatalogStatGrid } from "./CatalogStatGrid";
 import { CatalogThumb } from "./CatalogThumb";
+import {
+  getBuildingCatalogStats,
+  getEnemyCatalogStats,
+  getHeroCatalogStats,
+  getPermanentUpgradeCatalogStats,
+  getTroopCatalogStats,
+  getUpgradeCatalogStats,
+} from "./catalogStats";
 import { PlayHud } from "./PlayHud";
 import { useCallback, useState } from "react";
 import { gameBridge } from "../game/gameBridge";
@@ -203,15 +212,15 @@ function renderScreen(
     case "collection":
       return <CollectionScreen navigateTo={navigateTo} />;
     case "buildings":
-      return <CardsScreen title="Buildings" icon={Castle} items={buildingDefinitions} category="building" />;
+      return <BuildingsCatalogScreen />;
     case "heroes":
       return <HeroesScreen />;
     case "troops":
-      return <CardsScreen title="Troops" icon={Trophy} items={troopDefinitions} category="troop" />;
+      return <TroopsCatalogScreen />;
     case "run-upgrades":
       return <RunUpgradesScreen />;
     case "enemies":
-      return <CardsScreen title="Enemies" icon={Skull} items={enemyDefinitions} category="enemy" />;
+      return <EnemiesCatalogScreen />;
     case "maps":
       return <MapsScreen />;
     case "settings":
@@ -382,38 +391,104 @@ function CollectionScreen({ navigateTo }: { navigateTo: (screen: AppScreen) => v
   );
 }
 
-function CardsScreen({
-  title,
-  icon: Icon,
-  items,
-  category,
-}: {
-  title: string;
-  icon: typeof Home;
-  items: Array<Record<string, unknown>>;
-  category: "building" | "enemy" | "troop";
-}) {
+function BuildingsCatalogScreen() {
   return (
     <section className="content-screen">
-      <ScreenHeader icon={Icon} title={title} />
+      <ScreenHeader icon={Castle} title="Buildings" />
+      <p className="screen-lead">Tier 1 base stats. Pad upgrades cost 25 coins per tier in a run.</p>
       <div className="card-list">
-        {items.map((item) => (
-          <article className="content-card" key={String(item.id)}>
-            <CatalogThumb
-              itemId={String(item.id)}
-              category={category}
-              tint={typeof item.color === "number" ? item.color : undefined}
-              role={typeof item.role === "string" ? item.role : undefined}
-            />
-            <div>
-              <h3>{String(item.name)}</h3>
-              <p>{String(item.description ?? item.ability ?? item.unlock ?? "Ready for tuning.")}</p>
-              <span>{String(item.role ?? item.archetype ?? item.rarity ?? item.theme ?? "starter")}</span>
-            </div>
-          </article>
+        {buildingDefinitions.map((building) => (
+          <CatalogEntityCard
+            key={building.id}
+            itemId={building.id}
+            category="building"
+            tint={building.color}
+            role={building.role}
+            name={building.name}
+            description={building.description}
+            badge={building.role}
+            stats={getBuildingCatalogStats(building)}
+          />
         ))}
       </div>
     </section>
+  );
+}
+
+function EnemiesCatalogScreen() {
+  return (
+    <section className="content-screen">
+      <ScreenHeader icon={Skull} title="Enemies" />
+      <p className="screen-lead">Base stats at spawn. HP gains +5 per wave; fort leak uses ×0.55 in runs.</p>
+      <div className="card-list">
+        {enemyDefinitions.map((enemy) => (
+          <CatalogEntityCard
+            key={enemy.id}
+            itemId={enemy.id}
+            category="enemy"
+            tint={enemy.color}
+            name={enemy.name}
+            description={enemy.description}
+            badge={enemy.archetype}
+            stats={getEnemyCatalogStats(enemy)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TroopsCatalogScreen() {
+  return (
+    <section className="content-screen">
+      <ScreenHeader icon={Trophy} title="Troops" />
+      <p className="screen-lead">Barracks spawns these by tier. In-run HP/damage scale with barracks tier.</p>
+      <div className="card-list">
+        {troopDefinitions.map((troop) => (
+          <CatalogEntityCard
+            key={troop.id}
+            itemId={troop.id}
+            category="troop"
+            name={troop.name}
+            description={troop.description}
+            badge={troop.role}
+            stats={getTroopCatalogStats(troop)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CatalogEntityCard({
+  itemId,
+  category,
+  tint,
+  role,
+  name,
+  description,
+  badge,
+  stats,
+}: {
+  itemId: string;
+  category: "building" | "enemy" | "troop";
+  tint?: number;
+  role?: string;
+  name: string;
+  description: string;
+  badge: string;
+  stats: ReturnType<typeof getBuildingCatalogStats>;
+}) {
+  return (
+    <article className="content-card content-card--stats">
+      <CatalogThumb itemId={itemId} category={category} tint={tint} role={role} />
+      <div>
+        <h3>{name}</h3>
+        <p>{description}</p>
+        <span>{badge}</span>
+        <CatalogStatGrid stats={stats} />
+      </div>
+    </article>
   );
 }
 
@@ -426,7 +501,7 @@ function RunUpgradesScreen() {
       </p>
       <div className="card-list">
         {upgradeDefinitions.map((upgrade) => (
-          <article className="content-card" key={upgrade.id}>
+          <article className="content-card content-card--stats" key={upgrade.id}>
             <div className={`card-token upgrade-token rarity-${upgrade.rarity}`}>
               <Sparkles size={20} />
             </div>
@@ -434,6 +509,7 @@ function RunUpgradesScreen() {
               <h3>{upgrade.name}</h3>
               <p>{upgrade.description}</p>
               <span>{upgrade.rarity}</span>
+              <CatalogStatGrid stats={getUpgradeCatalogStats(upgrade)} />
             </div>
           </article>
         ))}
@@ -449,18 +525,23 @@ function HeroesScreen() {
   return (
     <section className="content-screen">
       <ScreenHeader icon={User} title="Heroes" />
+      <p className="screen-lead">Passive bonuses apply at run start. Ability cooldowns are in seconds.</p>
       <div className="card-list">
         {heroDefinitions.map((hero) => {
           const unlockWave = getUnlockWave(hero.unlock);
           const isUnlocked = progress.bestWave >= unlockWave;
           const isSelected = progress.selectedHeroId === hero.id;
           return (
-            <article className={`content-card selectable-card ${isSelected ? "selected" : ""} ${isUnlocked ? "" : "locked"}`} key={hero.id}>
+            <article
+              className={`content-card content-card--stats selectable-card ${isSelected ? "selected" : ""} ${isUnlocked ? "" : "locked"}`}
+              key={hero.id}
+            >
               <CatalogThumb itemId={hero.id} category="hero" tint={hero.color} />
               <div>
                 <h3>{hero.name}</h3>
-                <p>{hero.ability}: {hero.description}</p>
+                <p>{hero.description}</p>
                 <span>{isUnlocked ? hero.role : formatUnlockLabel(hero.unlock, progress.bestWave)}</span>
+                <CatalogStatGrid stats={getHeroCatalogStats(hero)} />
                 <button className="select-button" type="button" disabled={!isUnlocked} onClick={() => selectHero(hero.id, unlockWave)}>
                   {isSelected ? "Selected" : isUnlocked ? "Select" : "Locked"}
                 </button>
@@ -591,6 +672,7 @@ function PermanentUpgradesScreen() {
                 <h3>{upgrade.name}</h3>
                 <p>{upgrade.description}</p>
                 <span>Level {level}</span>
+                <CatalogStatGrid stats={getPermanentUpgradeCatalogStats(upgrade)} />
               </div>
               <strong>{canAfford ? cost : `${cost} gems`}</strong>
             </button>
@@ -670,4 +752,6 @@ function screenTitle(screen: AppScreen) {
   if (screen === "run-upgrades") return "Run upgrades";
   return screen.charAt(0).toUpperCase() + screen.slice(1);
 }
+
+
 

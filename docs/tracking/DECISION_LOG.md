@@ -234,4 +234,54 @@ Record meaningful product and technical decisions here so future development has
   - **Bat:** `archetype === "flyer"` skips spike traps.
   - **Bomber:** on fort reach, applies `damageToFort` + 55% bonus explosion (second `applyFortDamage`).
 - **Reasoning:** Closes balancing handoff gaps; upgrade cards and Collection copy now match runtime. Cannon/magic building descriptions aligned.
-- **Deferred:** FEATURE_SPEC permanent upgrades (troop HP, coin gain, reroll) and roguelike rarity weights — see BUG-021, BUG-022.
+- **Deferred:** FEATURE_SPEC permanent upgrades (troop HP, reroll) and roguelike rarity weights — see BUG-021, BUG-022. Coin gain added in DEC-031.
+
+## DEC-031: Economy Rebalance + Coin Ledger
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Tune in-run coin sources/sinks and meta gem fort-bonus hoarding without changing DEC-020 drip policy or DEC-024 forfeit rules.
+  - **Kill rewards:** grunt 6, runner 7, gatebreaker 115 (was 5/6/90).
+  - **Coin mill:** `15 × tier` income per wave clear (was 12).
+  - **Wave stipend:** +35 on upgrade pick; **+20** extra on boss waves (`wave % 5 === 0`).
+  - **Fort loss gem bonus:** `max(8, floor(wave × 12 + min(24, floor(coins × 0.04))))` — caps coin hoarding vs drip (was uncapped `coins × 0.08`).
+  - **Meta shop:** add **Merchant's Ledger** (`coinGain`) — +5% kill rewards per level, 40 gem base cost; stacks with mage / Gold Rush in `applyLoadout`.
+- **Reasoning:** Code ledger + strategy B simulation @ 390×844 (guardian, 100% kills): boss-only waves starved kill income vs mixed waves; fort bonus at 400+ coins dominated session gems; mill ROI on 40g build was ~4 clears at tier 1. Boss stipend keeps W5→W6 affordable without inflating normal waves. Hoarding cap preserves DEC-020 hybrid model.
+- **Research snapshot (strategy B — 1 archer W1, T2 W2, cannon W4, guardian, mult=1)**
+
+| Wave | Max kill coins | Cumulative stipend+mill* | Sim end coins (before W spend) |
+|-----:|---------------:|-------------------------:|-------------------------------:|
+| 1 | 36 | 35 | 191 |
+| 5 | 115 | 175 | ~555† |
+| 10 | 115 | 350 | ~1280† |
+
+\*Stipend only; no mill. †Spend ~70 (archer + T2 + cannon); actual playtest targets ≥50 entering W6 — met.
+
+**Gem paths (unchanged drip; new fort coin cap)**
+
+| Run end | Drip 1–N | Fort bonus @ 200 coins | Fort bonus @ 400 coins |
+|---------|----------|------------------------|------------------------|
+| W5 death | 31 | 74 (was 76) | — |
+| W10 death | 111 | — | 136 (was 152) |
+| Forfeit W6 | 31 (kept) | 0 | — |
+
+- **Implemented:** 2026-05-18 — `enemies.ts`, `buildings.ts`, `useGameStore.ts`, `RunScene.ts`, `GAME_BALANCE.md` §§10–12; `npm run build`.
+- **Deferred:** troop health + upgrade reroll permanent upgrades (BUG-021 remainder).
+
+## DEC-032: Combat & Economy Sink Pass (Build/Tier Costs + Wave Pressure)
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Context:** Post–DEC-031 playtest feedback — too easy to buy/upgrade towers; strategy B left **~460 coins** entering W5 with only archer T2 + cannon.
+- **Audit summary:**
+  - **Towers @ T1:** Archer ~31 DPS, cannon ~31, magic ~32 — similar single-target throughput; cannon adds splash.
+  - **W4 HP budget:** ~726 scaled HP (11 spawns); one T2 archer needs ~16s continuous fire if all on field — staggered spawns make one tower viable; economy was the real issue.
+  - **W7–9:** HP budget 1179→1786; fort wipe if all leak ~64–108 dmg vs 215 guardian HP — requires 2+ towers by midgame.
+  - **Boss W5:** 505 HP (pre-pass) ≈ 16s per T1 archer → design expects 2–3 towers.
+- **Decision:**
+  - **Sinks:** `padTierUpgradeCost = 25`; tower costs 30 / 52 / 65; support 35–78 (see `buildings.ts`).
+  - **Income:** wave stipend **25** (+10 boss); kill rewards unchanged from DEC-031.
+  - **Combat:** spawn HP `baseHp + wave × 6`; tank 115, shield 82, gatebreaker 520 base HP.
+  - **Waves:** W4 +1 shield; W7 +1 runner; W8 +1 bomber; W9 +1 tank.
+- **Post-pass coin path (strategy B, 100% kills):** after W4 **~383** (was ~460); after W5 **~533** (was ~630) — still affords magic or mill + tier, not both plus extras without tradeoffs.
+- **Implemented:** `buildings.ts`, `enemies.ts`, `waves.ts`, `RunScene.ts`, `GAME_BALANCE.md`, `catalogStats.ts`, `App.tsx`; `npm run build`.
