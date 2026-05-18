@@ -95,6 +95,10 @@ button {
   background: #f7f2e8;
 }
 
+.screen-body.is-play {
+  overflow: hidden;
+}
+
 .bottom-nav {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -218,6 +222,7 @@ button {
 .play-screen {
   height: 100%;
   background: #83a96d;
+  overflow: hidden;
 }
 
 .game-canvas,
@@ -388,3 +393,67 @@ button {
   }
 }
 
+@media (max-width: 560px) {
+  body {
+    overflow: hidden;
+    background: #17202b;
+  }
+
+  .app-shell {
+    width: 100%;
+    min-height: 100dvh;
+    padding: 0;
+    display: block;
+  }
+
+  .mobile-frame {
+    width: 100vw;
+    height: 100dvh;
+    aspect-ratio: auto;
+    border: 0;
+    border-radius: 0;
+    grid-template-rows: 58px minmax(0, 1fr) 64px;
+    box-shadow: none;
+  }
+
+  .mobile-topbar {
+    padding: 10px 14px;
+  }
+
+  .mobile-topbar button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .builder-panel {
+    display: none;
+  }
+
+  .home-screen,
+  .content-screen {
+    padding: 14px;
+  }
+
+  .hero-card {
+    padding: 16px;
+  }
+
+  .bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bottom-nav button {
+    font-size: 0.62rem;
+  }
+
+  .content-card {
+    grid-template-columns: 40px 1fr;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .card-token {
+    width: 40px;
+    height: 40px;
+  }
+}

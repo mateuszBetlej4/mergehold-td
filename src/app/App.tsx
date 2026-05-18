@@ -51,7 +51,9 @@ export function App() {
           </button>
         </div>
 
-        <div className="screen-body">{renderScreen(activeScreen, setActiveScreen)}</div>
+        <div className={`screen-body ${activeScreen === "play" ? "is-play" : ""}`}>
+          {renderScreen(activeScreen, setActiveScreen)}
+        </div>
 
         <nav className="bottom-nav" aria-label="Main navigation">
           {navItems.map((item) => {

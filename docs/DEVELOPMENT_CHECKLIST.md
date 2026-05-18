@@ -11,20 +11,23 @@
 - [x] Add first Phaser scene.
 - [x] Add Vercel config if needed.
 - [x] Add asset credits file.
+- [x] Add imported Kenney runtime sprites.
+- [x] Add mobile no-scroll play layout.
+- [x] Add tower selection and gameplay feedback.
 
 ## Prototype Gameplay
 
-- [ ] Mobile portrait canvas.
-- [ ] Fort/core entity.
-- [ ] Enemy path.
-- [ ] Enemy spawn timer.
-- [ ] Enemy reaches fort and deals damage.
-- [ ] Tower placement slot.
-- [ ] Tower shoots enemy.
-- [ ] Enemy death reward.
-- [ ] Wave counter.
-- [ ] Game over state.
-- [ ] Restart flow.
+- [x] Mobile portrait canvas.
+- [x] Fort/core entity.
+- [x] Enemy path.
+- [x] Enemy spawn timer.
+- [x] Enemy reaches fort and deals damage.
+- [x] Tower placement slot.
+- [x] Tower shoots enemy.
+- [x] Enemy death reward.
+- [x] Wave counter.
+- [x] Game over state.
+- [x] Restart flow.
 
 ## Merge System
 

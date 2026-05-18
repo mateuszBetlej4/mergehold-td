@@ -5,6 +5,8 @@ import { useGameStore } from "../../state/useGameStore";
 
 type Enemy = {
   body: Phaser.GameObjects.Image;
+  hpBar: Phaser.GameObjects.Rectangle;
+  pathIndex: number;
   hp: number;
   maxHp: number;
   speed: number;
@@ -14,6 +16,7 @@ type Enemy = {
 
 type Tower = {
   body: Phaser.GameObjects.Image;
+  badgeBg: Phaser.GameObjects.Arc;
   badge: Phaser.GameObjects.Text;
   tier: number;
   damage: number;
@@ -60,11 +63,15 @@ export class RunScene extends Phaser.Scene {
   private projectiles: Projectile[] = [];
   private towerSlots: Phaser.GameObjects.Rectangle[] = [];
   private towers: Tower[] = [];
-  private fortHp = 100;
-  private coins = 100;
+  private towerPickerButtons: Phaser.GameObjects.Rectangle[] = [];
+  private fortHp = 180;
+  private coins = 150;
   private wave = 1;
+  private isGameOver = false;
   private selectedTowerIndex = 0;
   private hudText?: Phaser.GameObjects.Text;
+  private waveText?: Phaser.GameObjects.Text;
+  private toastText?: Phaser.GameObjects.Text;
   private palette = {
     ground: 0x83a96d,
     path: 0xd9c59f,
@@ -96,6 +103,7 @@ export class RunScene extends Phaser.Scene {
     this.createBuildSlots();
     this.createTowerPicker();
     this.createHero();
+    this.showToast("Tap a build pad to place a tower");
     this.spawnWave();
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -104,6 +112,8 @@ export class RunScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    if (this.isGameOver) return;
+
     this.moveEnemies(delta);
     this.moveProjectiles(delta);
     this.towers.forEach((tower) => this.shootNearestEnemy(tower, time));
@@ -129,6 +139,14 @@ export class RunScene extends Phaser.Scene {
     graphics.strokePath();
 
     this.add.image(195, 584, "fort").setScale(0.86).setDepth(12);
+    this.add.text(195, 623, "Protect the keep", {
+      color: "#fff7da",
+      fontFamily: "Arial",
+      fontSize: "14px",
+      fontStyle: "bold",
+      stroke: "#17202b",
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(20);
   }
 
   private drawHud() {
@@ -139,6 +157,22 @@ export class RunScene extends Phaser.Scene {
       fontSize: "14px",
       fontStyle: "bold",
     }).setOrigin(0.5);
+    this.waveText = this.add.text(195, 58, "Wave 1", {
+      color: "#17202b",
+      fontFamily: "Arial",
+      fontSize: "18px",
+      fontStyle: "bold",
+      backgroundColor: "#f2c14e",
+      padding: { x: 14, y: 5 },
+    }).setOrigin(0.5).setDepth(40);
+    this.toastText = this.add.text(195, 92, "", {
+      color: "#ffffff",
+      fontFamily: "Arial",
+      fontSize: "14px",
+      fontStyle: "bold",
+      backgroundColor: "#216869",
+      padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(40).setAlpha(0);
   }
 
   private createBuildSlots() {
@@ -174,6 +208,7 @@ export class RunScene extends Phaser.Scene {
         .setStrokeStyle(index === this.selectedTowerIndex ? 4 : 2, 0xffffff)
         .setDepth(30)
         .setInteractive({ useHandCursor: true });
+      this.towerPickerButtons.push(button);
       this.add.image(x - 13, 656, towerAssetKeys[tower.id]).setScale(0.26).setDepth(31);
       this.add.text(x, 656, `${tower.icon} $${tower.baseCost}`, {
         color: "#ffffff",
@@ -183,8 +218,7 @@ export class RunScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(32);
 
       button.on("pointerdown", () => {
-        this.selectedTowerIndex = index;
-        this.scene.restart();
+        this.selectTower(index);
       });
     });
 
@@ -201,6 +235,11 @@ export class RunScene extends Phaser.Scene {
   }
 
   private tryBuildOrMerge(x: number, y: number) {
+    if (this.isGameOver) {
+      this.scene.restart();
+      return;
+    }
+
     const slot = this.towerSlots.find((candidate) => {
       return Phaser.Math.Distance.Between(x, y, candidate.x, candidate.y) < 32;
     });
@@ -216,13 +255,23 @@ export class RunScene extends Phaser.Scene {
         existingTower.damage += 8;
         existingTower.range += 4;
         existingTower.body.setScale(0.58 + existingTower.tier * 0.05);
+        existingTower.badgeBg.setPosition(existingTower.body.x + 19, existingTower.body.y - 18);
+        existingTower.badge.setPosition(existingTower.badgeBg.x, existingTower.badgeBg.y);
         existingTower.badge.setText(String(existingTower.tier));
+        this.showToast(`${existingTower.tier === 5 ? "Max" : "Tier"} ${existingTower.tier} tower`);
+      } else if (existingTower.tier >= 5) {
+        this.showToast("Tower is already max tier");
+      } else {
+        this.showToast("Need 15 coins to upgrade");
       }
       return;
     }
 
     const definition = starterTowers[this.selectedTowerIndex] ?? starterTowers[0];
-    if (this.coins < definition.baseCost) return;
+    if (this.coins < definition.baseCost) {
+      this.showToast(`Need ${definition.baseCost} coins`);
+      return;
+    }
 
     this.coins -= definition.baseCost;
     const body = this.add.image(slot.x, slot.y, towerAssetKeys[definition.id]).setScale(0.58).setDepth(8);
@@ -236,6 +285,7 @@ export class RunScene extends Phaser.Scene {
 
     this.towers.push({
       body,
+      badgeBg,
       badge,
       tier: 1,
       damage: definition.stats.damage,
@@ -243,6 +293,7 @@ export class RunScene extends Phaser.Scene {
       fireRateMs: definition.stats.fireRateMs,
       lastShotAt: 0,
     });
+    this.showToast(`${definition.name} built`);
   }
 
   private spawnWave() {
@@ -250,10 +301,10 @@ export class RunScene extends Phaser.Scene {
     let delay = 0;
 
     definitions.forEach((definition) => {
-      const count = definition.archetype === "boss" ? 1 : 2 + this.wave;
+      const count = definition.archetype === "boss" ? 1 : Math.min(6, 1 + this.wave);
       for (let index = 0; index < count; index += 1) {
         this.time.delayedCall(delay, () => this.spawnEnemy(definition));
-        delay += definition.archetype === "boss" ? 1200 : 560;
+        delay += definition.archetype === "boss" ? 1300 : 760;
       }
     });
 
@@ -261,6 +312,7 @@ export class RunScene extends Phaser.Scene {
       if (this.fortHp > 0) {
         this.wave += 1;
         this.coins += 24;
+        this.showToast(`Wave ${this.wave}`);
         this.spawnWave();
       }
     });
@@ -287,27 +339,36 @@ export class RunScene extends Phaser.Scene {
     const body = this.add.image(path[0].x, path[0].y, assetKey)
       .setScale(definition.archetype === "boss" ? 0.58 : 0.46)
       .setDepth(16);
+    const hpBar = this.add.rectangle(body.x, body.y - 28, 28, 4, 0x4f9d69)
+      .setOrigin(0.5)
+      .setDepth(17);
 
     this.enemies.push({
       body,
+      hpBar,
+      pathIndex: 1,
       hp: definition.hp + this.wave * 6,
       maxHp: definition.hp + this.wave * 6,
-      speed: (0.052 + this.wave * 0.002) * definition.speed,
+      speed: (0.046 + this.wave * 0.0015) * definition.speed,
       reward: definition.reward,
-      damageToFort: definition.damageToFort,
+      damageToFort: Math.ceil(definition.damageToFort * 0.55),
     });
   }
 
   private moveEnemies(delta: number) {
     this.enemies = this.enemies.filter((enemy) => {
-      const currentTarget = path.find((point) => {
-        return Phaser.Math.Distance.Between(enemy.body.x, enemy.body.y, point.x, point.y) > 8;
-      });
+      const currentTarget = path[enemy.pathIndex];
 
       if (!currentTarget) {
         enemy.body.destroy();
+        enemy.hpBar.destroy();
         this.fortHp = Math.max(0, this.fortHp - enemy.damageToFort);
         return false;
+      }
+
+      if (Phaser.Math.Distance.Between(enemy.body.x, enemy.body.y, currentTarget.x, currentTarget.y) < 8) {
+        enemy.pathIndex += 1;
+        return true;
       }
 
       const angle = Phaser.Math.Angle.Between(enemy.body.x, enemy.body.y, currentTarget.x, currentTarget.y);
@@ -315,6 +376,8 @@ export class RunScene extends Phaser.Scene {
       enemy.body.y += Math.sin(angle) * enemy.speed * delta;
       enemy.body.rotation = angle + Math.PI / 2;
       enemy.body.scale = (enemy.body.texture.key === "kenney-enemy-boss" ? 0.82 : 0.9) + (enemy.hp / enemy.maxHp) * 0.08;
+      enemy.hpBar.setPosition(enemy.body.x, enemy.body.y - 30);
+      enemy.hpBar.width = Math.max(3, 28 * (enemy.hp / enemy.maxHp));
       return enemy.hp > 0 && this.fortHp > 0;
     });
   }
@@ -362,6 +425,7 @@ export class RunScene extends Phaser.Scene {
         if (projectile.target.hp <= 0) {
           this.coins += projectile.target.reward;
           projectile.target.body.destroy();
+          projectile.target.hpBar.destroy();
         }
 
         return false;
@@ -389,8 +453,10 @@ export class RunScene extends Phaser.Scene {
 
     if (!this.hudText) return;
     this.hudText.setText(`HP ${this.fortHp}   Wave ${this.wave}   Coins ${this.coins}`);
+    this.waveText?.setText(`Wave ${this.wave}`);
 
-    if (this.fortHp <= 0) {
+    if (this.fortHp <= 0 && !this.isGameOver) {
+      this.isGameOver = true;
       this.add.rectangle(195, 347, 308, 132, 0x17202b, 0.9);
       this.add.text(195, 320, "FORT LOST", {
         color: "#ffffff",
@@ -403,7 +469,34 @@ export class RunScene extends Phaser.Scene {
         fontFamily: "Arial",
         fontSize: "15px",
       }).setOrigin(0.5);
-      this.scene.pause();
+      this.add.text(195, 391, "Tap anywhere to restart", {
+        color: "#f2c14e",
+        fontFamily: "Arial",
+        fontSize: "15px",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
     }
+  }
+
+  private selectTower(index: number) {
+    this.selectedTowerIndex = index;
+    this.towerPickerButtons.forEach((button, buttonIndex) => {
+      button.setStrokeStyle(buttonIndex === index ? 4 : 2, 0xffffff);
+    });
+    this.showToast(`${starterTowers[index]?.name ?? "Tower"} selected`);
+  }
+
+  private showToast(message: string) {
+    if (!this.toastText) return;
+
+    this.toastText.setText(message).setAlpha(1);
+    this.tweens.killTweensOf(this.toastText);
+    this.tweens.add({
+      targets: this.toastText,
+      alpha: 0,
+      duration: 450,
+      delay: 1200,
+      ease: "Sine.easeIn",
+    });
   }
 }
