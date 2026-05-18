@@ -139,6 +139,8 @@ export class RunScene extends Phaser.Scene {
   private coins = 150;
   private wave = 1;
   private isGameOver = false;
+  private isPaused = false;
+  private runSpeed = 1;
   private isChoosingUpgrade = false;
   private selectedTowerIndex = 0;
   private towerDamageMultiplier = 1;
@@ -157,6 +159,10 @@ export class RunScene extends Phaser.Scene {
   private toastText?: Phaser.GameObjects.Text;
   private abilityText?: Phaser.GameObjects.Text;
   private abilityButton?: Phaser.GameObjects.Rectangle;
+  private pauseButton?: Phaser.GameObjects.Rectangle;
+  private pauseButtonText?: Phaser.GameObjects.Text;
+  private speedButton?: Phaser.GameObjects.Rectangle;
+  private speedButtonText?: Phaser.GameObjects.Text;
   private upgradeOverlay?: Phaser.GameObjects.Container;
   private palette = {
     ground: 0x83a96d,
@@ -190,6 +196,8 @@ export class RunScene extends Phaser.Scene {
     this.applyLoadout();
     this.drawMap();
     this.drawHud();
+    this.createRunControls();
+    this.syncTimeScale();
     this.createBuildSlots();
     this.createTrapSlots();
     this.createTowerPicker();
@@ -205,8 +213,9 @@ export class RunScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (this.isGameOver) return;
 
-    if (this.isChoosingUpgrade) {
+    if (this.isChoosingUpgrade || this.isPaused) {
       this.updateHud();
+      this.updateRunControls();
       return;
     }
 
@@ -217,6 +226,7 @@ export class RunScene extends Phaser.Scene {
     this.moveProjectiles(delta);
     this.towers.forEach((tower) => this.shootNearestEnemy(tower, time));
     this.updateHud();
+    this.updateRunControls();
   }
 
   private drawMap() {
@@ -280,6 +290,107 @@ export class RunScene extends Phaser.Scene {
       backgroundColor: "#216869",
       padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(40).setAlpha(0);
+  }
+
+  private createRunControls() {
+    this.pauseButton = this.add
+      .rectangle(48, 58, 50, 30, this.palette.hud, 0.92)
+      .setStrokeStyle(2, 0xffffff)
+      .setDepth(45)
+      .setInteractive({ useHandCursor: true });
+    this.pauseButtonText = this.add
+      .text(48, 58, "Pause", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(46);
+
+    this.speedButton = this.add
+      .rectangle(104, 58, 50, 30, this.palette.hud, 0.92)
+      .setStrokeStyle(2, 0xffffff)
+      .setDepth(45)
+      .setInteractive({ useHandCursor: true });
+    this.speedButtonText = this.add
+      .text(104, 58, "1x", {
+        color: "#ffffff",
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(46);
+
+    this.pauseButton.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+        this.togglePause();
+      },
+    );
+    this.speedButton.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+        this.toggleRunSpeed();
+      },
+    );
+  }
+
+  private togglePause() {
+    if (this.isGameOver || this.isChoosingUpgrade) return;
+
+    this.isPaused = !this.isPaused;
+    this.syncTimeScale();
+    this.updateRunControls();
+    this.showToast(this.isPaused ? "Run paused" : "Run resumed");
+  }
+
+  private toggleRunSpeed() {
+    if (this.isGameOver || this.isChoosingUpgrade || this.isPaused) {
+      this.showToast(this.isPaused ? "Resume to change speed" : "Speed locked during upgrades");
+      return;
+    }
+
+    this.runSpeed = this.runSpeed === 1 ? 1.5 : 1;
+    this.syncTimeScale();
+    this.updateRunControls();
+    this.showToast(`Speed ${this.runSpeed}x`);
+  }
+
+  private syncTimeScale() {
+    if (this.isGameOver) {
+      this.time.timeScale = 1;
+      return;
+    }
+
+    if (this.isPaused || this.isChoosingUpgrade) {
+      this.time.timeScale = 0;
+      return;
+    }
+
+    this.time.timeScale = this.runSpeed;
+  }
+
+  private updateRunControls() {
+    if (!this.pauseButtonText || !this.speedButtonText || !this.pauseButton || !this.speedButton) return;
+
+    this.pauseButtonText.setText(this.isPaused ? "Play" : "Pause");
+    this.pauseButton.setFillStyle(this.isPaused ? 0x216869 : this.palette.hud, 0.92);
+    this.speedButtonText.setText(`${this.runSpeed}x`);
+    this.speedButton.setAlpha(this.isPaused || this.isChoosingUpgrade ? 0.45 : 1);
   }
 
   private createBuildSlots() {
@@ -1249,6 +1360,7 @@ export class RunScene extends Phaser.Scene {
 
     const millIncome = this.collectCoinMillIncome();
     this.isChoosingUpgrade = true;
+    this.syncTimeScale();
     const offeredUpgrades = this.pickUpgrades();
     const overlay = this.add.container(0, 0).setDepth(80);
     overlay.add(this.add.rectangle(195, 347, 390, 694, 0x17202b, 0.64));
@@ -1321,9 +1433,11 @@ export class RunScene extends Phaser.Scene {
     this.upgradeOverlay?.destroy(true);
     this.upgradeOverlay = undefined;
     this.isChoosingUpgrade = false;
+    this.syncTimeScale();
     this.wave += 1;
     this.coins += 30;
     this.refreshSecondaryPickerLocks();
+    this.updateRunControls();
     this.showToast(`${upgrade.name} gained`);
     this.spawnWave();
   }

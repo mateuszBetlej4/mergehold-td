@@ -71,3 +71,10 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** Pay coin mill income when a wave is cleared, before the upgrade picker opens, and show the payout on the wave-cleared overlay.
 - **Reasoning:** Matches the building description, gives immediate feedback, and reinforces economy planning between waves.
+
+## DEC-011: Pause And Speed Use Phaser Time Scale
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Add in-run Pause and 1x/1.5x speed buttons that drive `this.time.timeScale`, freezing wave timers and combat while paused.
+- **Reasoning:** Gives mobile players quick control without a separate settings screen and keeps wave pacing, spawns, and cooldowns in sync.

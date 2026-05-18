@@ -29,6 +29,8 @@
 - [x] Wave counter.
 - [x] Game over state.
 - [x] Restart flow.
+- [x] Pause control.
+- [x] Speed toggle.
 
 ## Merge System
 
