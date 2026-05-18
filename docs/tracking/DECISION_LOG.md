@@ -146,9 +146,16 @@ Record meaningful product and technical decisions here so future development has
 ## DEC-021: Kenney Tank / Shield Facing Offset
 
 - **Date:** 2026-05-18
-- **Status:** Accepted (runner row superseded by DEC-026)
+- **Status:** Superseded by DEC-028 (tank/shield)
 - **Decision:** Set `spriteFacingOffset` to `+π/2` for `kenney-enemy-tank` and `kenney-enemy-shield` (art faces **up** at Phaser rotation 0). Keep `kenney-enemy-grunt` at `0` (art faces **right**). Boss and SVG bat/bomber keys unchanged at `+π/2`.
 - **Reasoning:** Graphics QA (BUG-017 / AUD-014) found vertical-path segments showed sideways facing when offsets assumed all Kenney PNGs face east. Table in `docs/GRAPHICS.md` updated to match `RunScene.ts`. **Runner** was briefly included here; reverted to `0` in DEC-026 after BUG-018.
+
+## DEC-028: Kenney Grunt Family Facing (Tank / Shield → Offset 0)
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Set `spriteFacingOffset` to `0` for `kenney-enemy-grunt`, `kenney-enemy-runner`, `kenney-enemy-tank`, and `kenney-enemy-shield` (Kenney PNGs face **right** at rotation 0). Keep `kenney-enemy-boss` at `+π/2` until playtested. SVG bat/bomber keys stay `+π/2`.
+- **Reasoning:** User report 2026-05-18 — tank and shield looked sideways with DEC-021 `+π/2`; same fix pattern as runner (DEC-026/027). All standard wave Kenney enemies share right-facing art.
 
 ## DEC-026: Kenney Runner Faces Right (Offset 0)
 
@@ -162,7 +169,7 @@ Record meaningful product and technical decisions here so future development has
 - **Date:** 2026-05-18
 - **Status:** Accepted
 - **Decision:** On path waypoint advance, snap `enemy.body.rotation` to the next leg angle + `facingOffset`. Increase `rotationTurnSpeed` to `0.045`. Wave-clear overlay: `cardStartY = bonusY + upgradeCardHalfHeight + 24` so gem drip text is not clipped (BUG-019). **Runner offset stays `0`** (DEC-026) — do not apply `+π/2` to `kenney-enemy-runner`; user confirmed `+π/2` reads sideways.
-- **Reasoning:** BUG-020 agent playtest misread diagonal facing; user verified runner correct at offset `0`. Grunt also `0`. Tank/shield remain `+π/2` per DEC-021.
+- **Reasoning:** BUG-020 agent playtest misread diagonal facing; user verified runner correct at offset `0`. Grunt also `0`. Tank/shield moved to `0` in DEC-028 (user report).
 
 ## DEC-022: Audio Settings In Progress Blob; Deploy Dev-Only
 
