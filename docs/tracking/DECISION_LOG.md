@@ -106,3 +106,31 @@ Record meaningful product and technical decisions here so future development has
 - **Status:** Accepted
 - **Decision:** After picking a roguelike upgrade, show a Start Wave button instead of auto-spawning the next wave. The first wave still starts on run begin.
 - **Reasoning:** Gives players time to build or merge after upgrades and matches the planned start-wave control from the handoff checklist.
+
+## DEC-016: Tiled Grass And Path-Dot Map (No Vector Path Stroke)
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Render run map ground with tiled `kenney-grass` (map-tinted) and the lane with stamped `kenney-path-dot` tiles. Do not draw a Phaser `graphics` vector path on top.
+- **Reasoning:** Path-dot tiles read well alone; a semi-transparent vector stroke stacked on dots produced an unwanted light-gray “radiant” band. Map theme still comes from `maps.ts` palette tints.
+
+## DEC-017: Bat And Bomber Use Tinted Project SVGs
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** `bat` uses Phaser key `enemy-runner` (SVG); `bomber` uses `enemy-grunt` (SVG), each tinted with `enemyDefinitions[].color`. Other enemies keep Kenney PNGs.
+- **Reasoning:** Differentiates flyer/exploder silhouettes without new downloads; PNG runner/grunt remain for `runner` and `grunt` wave types.
+
+## DEC-018: Archer Arrow Projectile And Troop Role Tints
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Archer tower fires `projectile-arrow` SVG; cannon and magic keep `kenney-projectile`. Barracks troops tint `hero-guardian` by troop role (blocker / ranged / burst), not a single barracks color.
+- **Reasoning:** Clearer combat read at low resolution using assets already in `optimized/sprites/`.
+
+## DEC-019: Per-Texture Sprite Facing Offsets
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Rotate towers, enemies, troops, and directional projectiles using a `spriteFacingOffset` map keyed by texture name, plus `rotateSpriteToward()` with `Angle.RotateTo` smoothing. Kenney units face up or right at rotation 0 depending on asset; offsets were set per inspected sprite.
+- **Reasoning:** Phaser angle 0 is east; art-forward varies by file. Central map avoids wrong 90° facing and documents tuning in `docs/GRAPHICS.md`.

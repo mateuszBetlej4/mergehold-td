@@ -86,6 +86,18 @@ src/
 
 Gameplay numbers should live in `src/data` where possible. Avoid hard-coding damage, HP, wave size, costs, or upgrade effects inside scene code unless the value is purely visual.
 
+## Run Scene Graphics
+
+Visual wiring is concentrated in `RunScene.ts` (`preload`, `drawMap`, asset key maps, `spriteFacingOffset`, `aimTowers`, `rotateSpriteToward`). React dock images use the same filenames via `gameBridge` / `PlayHud.tsx`.
+
+Full inventory, rotation table, depth order, and test checklist: **`docs/GRAPHICS.md`**.
+
+Key rules:
+
+- Map colors from `maps.ts` → `applyLoadout()` palette; grass and path dots are tinted, not replaced per map.
+- Phaser texture keys must match React `/assets/optimized/sprites/` paths.
+- Do not stack vector path strokes on path-dot tiles (see DEC-016).
+
 ## Persistence Plan
 
 ### Phase 1

@@ -95,6 +95,12 @@ public/assets/
     ASSET_CREDITS.md
 ```
 
+## Currently wired in Run (2026-05-18)
+
+Kenney PNGs + project SVGs in `public/assets/optimized/sprites/` are loaded by `RunScene.preload()`. See **`docs/GRAPHICS.md`** for the full key list, map tiling (grass / path-dot), rotation offsets, and what is still unused. Credits: `public/assets/licenses/ASSET_CREDITS.md`.
+
+Not yet integrated: Quaternius packs, UI skin, SFX (sections below).
+
 ## Asset Intake Checklist
 
 - Download source archive.

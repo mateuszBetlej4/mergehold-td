@@ -90,6 +90,18 @@
 - [x] Optimize runtime assets.
 - [x] Replace core tower/enemy placeholders.
 
+## Graphics (Run scene)
+
+- [x] Tiled Kenney grass ground (map palette tint).
+- [x] Kenney path-dot lane (no vector path overlay).
+- [x] Bat / bomber SVG differentiation + tint.
+- [x] Archer `projectile-arrow` vs Kenney blob for cannon/magic.
+- [x] Troop role tints on shared hero silhouette.
+- [x] Tower / enemy / troop facing rotation (`spriteFacingOffset`).
+- [ ] Collection screen thumbnails from existing sprites.
+- [ ] Kenney pad tiles for build / trap slots.
+- [ ] Per-hero unique sprites (still one guardian SVG + tint).
+
 ## Deployment
 
 - [x] Build passes.
@@ -98,6 +110,18 @@
 - [ ] Production deployment works.
 - [x] Mobile viewport checked.
 - [ ] Asset credits visible.
+
+## Meta progression (audit 2026-05-18 — gaps)
+
+- [x] `claimRunRewards` + localStorage save (`useGameStore.ts`).
+- [x] Permanent upgrade purchase logic + apply in `RunScene.applyLoadout`.
+- [ ] Gems / `bestWave` on wave clear (not only fort death).
+- [ ] Leave-run flow (confirm, partial rewards, or resume).
+- [ ] Home screen: accurate run/progress display after leaving Play.
+- [ ] Collection card art from `optimized/sprites`.
+- [ ] Align unlock UX with “Clear wave N” copy.
+
+See `docs/handoffs/2026-05-18-audit.md`.
 
 ## Supabase Later
 

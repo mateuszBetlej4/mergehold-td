@@ -24,6 +24,7 @@ type Enemy = {
   damageToFort: number;
   tint: number;
   isBoss: boolean;
+  facingOffset: number;
 };
 
 type Tower = {
@@ -162,6 +163,24 @@ const troopRoleTints: Record<TroopDefinition["role"], number> = {
 const groundTileSize = 64;
 const pathDotSpacing = 26;
 
+/** Added to Phaser aim angle so texture "forward" matches target (0° = east in Phaser). */
+const spriteFacingOffset: Record<string, number> = {
+  "kenney-tower-archer": Math.PI / 2,
+  "kenney-tower-cannon": Math.PI / 2,
+  "kenney-tower-magic": 0,
+  "kenney-enemy-grunt": 0,
+  "kenney-enemy-runner": 0,
+  "kenney-enemy-tank": 0,
+  "kenney-enemy-shield": 0,
+  "kenney-enemy-boss": Math.PI / 2,
+  "enemy-grunt": Math.PI / 2,
+  "enemy-runner": Math.PI / 2,
+  "projectile-arrow": 0,
+  "hero-guardian": Math.PI / 2,
+};
+
+const rotationTurnSpeed = 0.01;
+
 export class RunScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private projectiles: Projectile[] = [];
@@ -267,6 +286,7 @@ export class RunScene extends Phaser.Scene {
     this.spawnBarracksTroops(time);
     this.updateFriendlyTroops(time, delta);
     this.moveProjectiles(delta);
+    this.aimTowers(delta);
     this.towers.forEach((tower) => this.shootNearestEnemy(tower, time));
     this.updateHud();
   }
@@ -278,18 +298,6 @@ export class RunScene extends Phaser.Scene {
     this.add.image(345, 104, "kenney-tree").setScale(0.64).setTint(this.palette.hud).setDepth(1);
     this.add.image(52, 526, "kenney-tree").setScale(0.6).setTint(this.palette.hud).setDepth(1);
     this.add.image(345, 565, "kenney-tree").setScale(0.74).setTint(this.palette.hud).setDepth(1);
-
-    const graphics = this.add.graphics();
-    graphics.setDepth(3);
-    graphics.lineStyle(40, this.palette.path, 0.72);
-    graphics.beginPath();
-    graphics.moveTo(path[0].x, path[0].y);
-    path.slice(1).forEach((point) => graphics.lineTo(point.x, point.y));
-    graphics.strokePath();
-
-    graphics.lineStyle(3, this.palette.hud, 0.45);
-    graphics.strokePath();
-
     this.add.image(195, 500, "fort").setScale(0.78).setDepth(12);
   }
 
@@ -1094,8 +1102,10 @@ export class RunScene extends Phaser.Scene {
       const target = this.findTroopTarget(troop);
       if (target) {
         const distance = Phaser.Math.Distance.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
+        const angle = Phaser.Math.Angle.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
+        this.rotateSpriteToward(troop.body, angle, spriteFacingOffset["hero-guardian"], delta);
+
         if (distance > troop.attackRange) {
-          const angle = Phaser.Math.Angle.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
           troop.body.x += Math.cos(angle) * troop.speed * delta;
           troop.body.y += Math.sin(angle) * troop.speed * delta;
         } else if (time - troop.lastAttackAt >= troop.attackCooldownMs) {
@@ -1257,6 +1267,7 @@ export class RunScene extends Phaser.Scene {
       damageToFort: Math.ceil(definition.damageToFort * 0.55),
       tint: usesSvg ? definition.color : 0xffffff,
       isBoss,
+      facingOffset: spriteFacingOffset[assetKey] ?? 0,
     });
   }
 
@@ -1279,7 +1290,7 @@ export class RunScene extends Phaser.Scene {
       const angle = Phaser.Math.Angle.Between(enemy.body.x, enemy.body.y, currentTarget.x, currentTarget.y);
       enemy.body.x += Math.cos(angle) * enemy.speed * delta;
       enemy.body.y += Math.sin(angle) * enemy.speed * delta;
-      enemy.body.rotation = angle + Math.PI / 2;
+      this.rotateSpriteToward(enemy.body, angle, enemy.facingOffset, delta);
       enemy.body.scale = (enemy.isBoss ? 0.82 : 0.9) + (enemy.hp / enemy.maxHp) * 0.08;
       enemy.hpBar.setPosition(enemy.body.x, enemy.body.y - 30);
       enemy.hpBar.width = Math.max(3, 28 * (enemy.hp / enemy.maxHp));
@@ -1287,24 +1298,42 @@ export class RunScene extends Phaser.Scene {
     });
   }
 
-  private shootNearestEnemy(tower: Tower, time: number) {
-    if (time - tower.lastShotAt < tower.fireRateMs || this.enemies.length === 0) return;
-
-    const target = this.enemies
+  private findTowerTarget(tower: Tower) {
+    return this.enemies
       .filter((enemy) => Phaser.Math.Distance.Between(tower.body.x, tower.body.y, enemy.body.x, enemy.body.y) < tower.range)
       .sort((a, b) => {
         const distanceA = Phaser.Math.Distance.Between(tower.body.x, tower.body.y, a.body.x, a.body.y);
         const distanceB = Phaser.Math.Distance.Between(tower.body.x, tower.body.y, b.body.x, b.body.y);
         return distanceA - distanceB;
       })[0];
+  }
 
+  private aimTowers(delta: number) {
+    this.towers.forEach((tower) => {
+      const target = this.findTowerTarget(tower);
+      if (!target) return;
+
+      const angle = Phaser.Math.Angle.Between(tower.body.x, tower.body.y, target.body.x, target.body.y);
+      const facingOffset = spriteFacingOffset[tower.body.texture.key] ?? Math.PI / 2;
+      this.rotateSpriteToward(tower.body, angle, facingOffset, delta);
+    });
+  }
+
+  private shootNearestEnemy(tower: Tower, time: number) {
+    if (time - tower.lastShotAt < tower.fireRateMs || this.enemies.length === 0) return;
+
+    const target = this.findTowerTarget(tower);
     if (!target) return;
 
     tower.lastShotAt = time;
     const projectileKey = projectileAssetKeys[tower.towerId] ?? "kenney-projectile";
     const projectileScale = projectileKey === "projectile-arrow" ? 0.62 : 0.55;
+    const projectile = this.add.image(tower.body.x, tower.body.y, projectileKey).setScale(projectileScale).setDepth(18);
+    const shotAngle = Phaser.Math.Angle.Between(tower.body.x, tower.body.y, target.body.x, target.body.y);
+    projectile.rotation = shotAngle + (spriteFacingOffset[projectileKey] ?? 0);
+
     this.projectiles.push({
-      body: this.add.image(tower.body.x, tower.body.y, projectileKey).setScale(projectileScale).setDepth(18),
+      body: projectile,
       target,
       damage: tower.damage,
       speed: 0.42,
@@ -1344,7 +1373,8 @@ export class RunScene extends Phaser.Scene {
         projectile.target.body.x,
         projectile.target.body.y,
       );
-      projectile.body.rotation = angle;
+      const projectileOffset = spriteFacingOffset[projectile.body.texture.key] ?? 0;
+      projectile.body.rotation = angle + projectileOffset;
       projectile.body.x += Math.cos(angle) * projectile.speed * delta;
       projectile.body.y += Math.sin(angle) * projectile.speed * delta;
       return true;
@@ -1730,6 +1760,16 @@ export class RunScene extends Phaser.Scene {
 
     this.runRewardClaimed = true;
     return useGameStore.getState().claimRunRewards(this.wave, this.coins);
+  }
+
+  private rotateSpriteToward(
+    sprite: Phaser.GameObjects.Image,
+    aimAngle: number,
+    facingOffset: number,
+    delta: number,
+  ) {
+    const targetRotation = aimAngle + facingOffset;
+    sprite.rotation = Phaser.Math.Angle.RotateTo(sprite.rotation, targetRotation, rotationTurnSpeed * delta);
   }
 }
 

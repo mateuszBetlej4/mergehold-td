@@ -19,7 +19,8 @@ When the user asks for a handoff (e.g. “make a handoff”, “hand off to the 
 1. Read `docs/handoffs/LATEST.md` for the current handoff path.
 2. Read that dated handoff file in full.
 3. Then read `docs/DEVELOPMENT_CHECKLIST.md` and `docs/tracking/DECISION_LOG.md`.
-4. Do **not** restart the project from scratch.
+4. For in-run sprites, map tiles, and rotation: read `docs/GRAPHICS.md`.
+5. Do **not** restart the project from scratch.
 
 ## File naming
 
