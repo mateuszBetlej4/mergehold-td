@@ -42,11 +42,9 @@ Verification:
 
 ## Active Bugs
 
-_None — bug-fix sweep 2026-05-18 complete. See **Fixed Bugs** below._
+_None — all tracked bugs **Verified** as of 2026-05-18 (including pre-audit BUG-001–005)._
 
 **Handoff:** `docs/handoffs/2026-05-18-bug-fix.md` (see `LATEST.md`).
-
-_Audit BUG-006–009, 007, 013, 016, 017 are **Verified** in **Fixed Bugs** below._
 
 ---
 
@@ -415,12 +413,13 @@ Graphics QA 2026-05-18: `tank`, `shield` → `+π/2`; `grunt` stays `0`. Runner 
 
 ID: BUG-005
 Title: Built towers cannot be upgraded — "Build pad is occupied"
-Status: Fixed
+Status: Verified
 Severity: S1
 Area: Gameplay / build pads
 Found in: Tower placement after React HUD pass
 Owner: Unassigned
 Date opened: 2026-05-18
+Date closed: 2026-05-18
 Related issue: N/A
 
 Steps to reproduce:
@@ -437,16 +436,19 @@ Notes:
 Tower upgrade logic existed but was unreachable when a tower was already on the pad.
 
 Verification:
-Tap placed tower with tower mode selected; tier increases for 15 coins.
+2026-05-18 — Tap placed tower with tower mode selected; tier increases for 15 coins. `npm run build` pass; no regression in bug-fix sweep.
+
+---
 
 ID: BUG-003
 Title: Upgrade picker hides the run HUD bars
-Status: Fixed
+Status: Verified
 Severity: S2
 Area: Run UI
 Found in: React PlayHud overlay pass
 Owner: Unassigned
 Date opened: 2026-05-18
+Date closed: 2026-05-18
 Related issue: N/A
 
 Steps to reproduce:
@@ -463,16 +465,19 @@ Notes:
 Regression from moving run chrome into React; Phaser overlay is not the cause—the HUD is explicitly unmounted.
 
 Verification:
-PlayHud stays mounted during upgrade; dock shows “Pick an upgrade card” hint.
+2026-05-18 — PlayHud stays mounted during upgrade; dock shows “Pick an upgrade card” hint. No regression in bug-fix sweep.
+
+---
 
 ID: BUG-004
 Title: Start Wave button shows the wrong wave number
-Status: Fixed
+Status: Verified
 Severity: S2
 Area: Run UI / waves
 Found in: Manual start-wave flow after upgrade pick
 Owner: Unassigned
 Date opened: 2026-05-18
+Date closed: 2026-05-18
 Related issue: N/A
 
 Steps to reproduce:
@@ -490,16 +495,19 @@ Notes:
 Wave should advance when the next wave actually starts (`beginNextWave` / `spawnWave`), not when the upgrade is chosen.
 
 Verification:
-Wave increments in `beginNextWave`; button label uses `wave + 1` for the next wave to start.
+2026-05-18 — Wave increments in `beginNextWave`; button label uses `wave + 1` for the next wave to start. Browser @ 390×844 during sweep.
+
+---
 
 ID: BUG-001
 Title: Enemies could target an earlier path point instead of advancing cleanly through the lane.
-Status: Fixed
+Status: Verified
 Severity: S1
 Area: Gameplay
 Found in: Visual asset pass
 Owner: Codex
 Date opened: 2026-05-18
+Date closed: 2026-05-18
 Related issue: N/A
 
 Steps to reproduce:
@@ -511,16 +519,19 @@ The target lookup could choose a previous waypoint, causing unstable movement.
 Notes:
 Enemies now track their current path index.
 Verification:
-`npm run build` passes and mobile browser smoke test loads Play with no console errors.
+2026-05-18 — Enemies track `pathIndex` through waypoints; `npm run build` pass; path movement unchanged in bug-fix sweep.
+
+---
 
 ID: BUG-002
 Title: Play screen could scroll inside the mobile frame.
-Status: Fixed
+Status: Verified
 Severity: S2
 Area: Mobile UI
 Found in: Mobile browser smoke test
 Owner: Codex
 Date opened: 2026-05-18
+Date closed: 2026-05-18
 Related issue: N/A
 
 Steps to reproduce:
@@ -532,4 +543,4 @@ The screen body could scroll.
 Notes:
 Play screen now uses a no-scroll screen body and full-height canvas.
 Verification:
-Mobile browser check reported no body or screen scrolling.
+2026-05-18 — Play @ 390×844: no body or screen scrolling during bug-fix sweep browser pass.
