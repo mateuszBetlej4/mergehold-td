@@ -46,6 +46,32 @@ No active bugs.
 
 ## Fixed Bugs
 
+ID: BUG-005
+Title: Built towers cannot be upgraded — "Build pad is occupied"
+Status: Fixed
+Severity: S1
+Area: Gameplay / build pads
+Found in: Tower placement after React HUD pass
+Owner: Unassigned
+Date opened: 2026-05-18
+Related issue: N/A
+
+Steps to reproduce:
+1. Start a run and place a tower on a build pad.
+2. With a tower type still selected, tap the same pad again to merge/upgrade.
+
+Expected:
+Spending 15 coins upgrades the tower tier.
+
+Actual:
+`tryBuildOrMerge` called `isPadOccupied()` before checking for an existing tower on that pad, so the occupied check fired and blocked the upgrade path.
+
+Notes:
+Tower upgrade logic existed but was unreachable when a tower was already on the pad.
+
+Verification:
+Tap placed tower with tower mode selected; tier increases for 15 coins.
+
 ID: BUG-003
 Title: Upgrade picker hides the run HUD bars
 Status: Fixed

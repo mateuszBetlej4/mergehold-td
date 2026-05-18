@@ -519,14 +519,14 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
-    if (this.isPadOccupied(slot)) {
-      this.showToast("Build pad is occupied");
-      return;
-    }
-
     const existingTower = this.towers.find((tower) => tower.body.x === slot.x && tower.body.y === slot.y);
 
     if (existingTower) {
+      if (this.selectedBuildMode !== "tower") {
+        this.showToast("Build pad is occupied");
+        return;
+      }
+
       if (this.coins >= 15 && existingTower.tier < 5) {
         this.coins -= 15;
         existingTower.tier += 1;
@@ -542,6 +542,11 @@ export class RunScene extends Phaser.Scene {
       } else {
         this.showToast("Need 15 coins to upgrade");
       }
+      return;
+    }
+
+    if (this.isPadOccupied(slot)) {
+      this.showToast("Build pad is occupied");
       return;
     }
 
