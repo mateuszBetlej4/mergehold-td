@@ -290,7 +290,9 @@ button {
   text-transform: uppercase;
 }
 
-.setting-row {
+.setting-row,
+.danger-row,
+.upgrade-row {
   width: 100%;
   min-height: 54px;
   margin-bottom: 10px;
@@ -302,6 +304,75 @@ button {
   background: #ffffff;
   color: #17202b;
   border: 1px solid rgba(23, 32, 43, 0.1);
+}
+
+.danger-row {
+  color: #7f1d1d;
+  background: #fff1f1;
+}
+
+.wallet-row {
+  min-height: 54px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  color: #17202b;
+  background: #f2c14e;
+  font-weight: 900;
+}
+
+.upgrade-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  text-align: left;
+}
+
+.upgrade-row h3,
+.upgrade-row p {
+  margin: 0;
+}
+
+.upgrade-row h3 {
+  color: #17202b;
+  font-size: 0.98rem;
+}
+
+.upgrade-row p {
+  margin-top: 4px;
+  color: #4b5563;
+  font-size: 0.82rem;
+}
+
+.upgrade-row span {
+  display: inline-block;
+  margin-top: 8px;
+  color: #216869;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.upgrade-row strong {
+  min-width: 48px;
+  min-height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #17202b;
+  background: #f2c14e;
+}
+
+.upgrade-row.locked {
+  opacity: 0.72;
+}
+
+.upgrade-row.locked strong {
+  color: #64748b;
+  background: #e5e7eb;
 }
 
 .builder-panel {

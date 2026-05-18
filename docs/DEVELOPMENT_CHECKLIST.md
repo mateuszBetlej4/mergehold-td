@@ -63,11 +63,11 @@
 
 ## Progression
 
-- [ ] End-of-run rewards.
-- [ ] Local save.
-- [ ] Permanent upgrade menu.
+- [x] End-of-run rewards.
+- [x] Local save.
+- [x] Permanent upgrade menu.
 - [ ] Unlock conditions.
-- [ ] Reset save in settings.
+- [x] Reset save in settings.
 
 ## Assets
 

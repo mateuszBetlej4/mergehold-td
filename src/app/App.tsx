@@ -22,9 +22,13 @@ import { gameContent } from "../data/gameContent";
 import { heroDefinitions } from "../data/heroes";
 import { mapDefinitions } from "../data/maps";
 import { troopDefinitions } from "../data/troops";
-import { upgradeDefinitions } from "../data/upgrades";
 import { GameCanvas } from "../game/GameCanvas";
-import { type AppScreen, useGameStore } from "../state/useGameStore";
+import {
+  permanentUpgradeDefinitions,
+  type AppScreen,
+  type PermanentUpgradeId,
+  useGameStore,
+} from "../state/useGameStore";
 
 const navItems: Array<{ screen: AppScreen; label: string; icon: typeof Home }> = [
   { screen: "home", label: "Home", icon: Home },
@@ -125,7 +129,7 @@ function renderScreen(screen: AppScreen, setActiveScreen: (screen: AppScreen) =>
     case "play":
       return <PlayScreen />;
     case "upgrades":
-      return <CardsScreen title="Run Upgrades" icon={Sparkles} items={upgradeDefinitions} />;
+      return <PermanentUpgradesScreen />;
     case "collection":
       return <CollectionScreen setActiveScreen={setActiveScreen} />;
     case "buildings":
@@ -149,6 +153,7 @@ function renderScreen(screen: AppScreen, setActiveScreen: (screen: AppScreen) =>
 
 function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) => void }) {
   const run = useGameStore((state) => state.run);
+  const progress = useGameStore((state) => state.progress);
 
   return (
     <section className="home-screen">
@@ -162,12 +167,13 @@ function HomeScreen({ setActiveScreen }: { setActiveScreen: (screen: AppScreen) 
       </div>
 
       <div className="quick-stats">
-        <Metric label="Wave" value={String(run.wave)} />
-        <Metric label="Fort HP" value={String(run.fortHp)} />
-        <Metric label="Coins" value={String(run.coins)} />
+        <Metric label="Best" value={`Wave ${progress.bestWave}`} />
+        <Metric label="Gems" value={String(progress.softCurrency)} />
+        <Metric label="Run" value={`W${run.wave}`} />
       </div>
 
       <div className="screen-grid two">
+        <MenuTile icon={Sparkles} label="Permanent Upgrades" onClick={() => setActiveScreen("upgrades")} />
         <MenuTile icon={Castle} label="Buildings" onClick={() => setActiveScreen("buildings")} />
         <MenuTile icon={User} label="Heroes" onClick={() => setActiveScreen("heroes")} />
         <MenuTile icon={Skull} label="Enemies" onClick={() => setActiveScreen("enemies")} />
@@ -226,6 +232,7 @@ function SettingsScreen() {
   const musicEnabled = useGameStore((state) => state.musicEnabled);
   const toggleSound = useGameStore((state) => state.toggleSound);
   const toggleMusic = useGameStore((state) => state.toggleMusic);
+  const resetProgress = useGameStore((state) => state.resetProgress);
 
   return (
     <section className="content-screen">
@@ -245,6 +252,47 @@ function SettingsScreen() {
           <p>Runtime assets are currently procedural placeholders. Imported packs must be logged in asset credits.</p>
           <span>public/assets/licenses</span>
         </div>
+      </div>
+      <button className="danger-row" type="button" onClick={resetProgress}>
+        <span>Reset local save</span>
+        <strong>Reset</strong>
+      </button>
+    </section>
+  );
+}
+
+function PermanentUpgradesScreen() {
+  const progress = useGameStore((state) => state.progress);
+  const buyPermanentUpgrade = useGameStore((state) => state.buyPermanentUpgrade);
+
+  return (
+    <section className="content-screen">
+      <ScreenHeader icon={Sparkles} title="Permanent Upgrades" />
+      <div className="wallet-row">
+        <span>Gems</span>
+        <strong>{progress.softCurrency}</strong>
+      </div>
+      <div className="card-list">
+        {permanentUpgradeDefinitions.map((upgrade) => {
+          const level = progress.permanentUpgrades[upgrade.id];
+          const cost = upgrade.baseCost + level * upgrade.baseCost;
+          const canAfford = progress.softCurrency >= cost;
+          return (
+            <button
+              className={`upgrade-row ${canAfford ? "" : "locked"}`}
+              key={upgrade.id}
+              type="button"
+              onClick={() => buyPermanentUpgrade(upgrade.id as PermanentUpgradeId)}
+            >
+              <div>
+                <h3>{upgrade.name}</h3>
+                <p>{upgrade.description}</p>
+                <span>Level {level}</span>
+              </div>
+              <strong>{canAfford ? cost : `${cost}`}</strong>
+            </button>
+          );
+        })}
       </div>
     </section>
   );

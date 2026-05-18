@@ -75,6 +75,7 @@ export class RunScene extends Phaser.Scene {
   private towerDamageMultiplier = 1;
   private fireRateMultiplier = 1;
   private rewardMultiplier = 1;
+  private runRewardClaimed = false;
   private hudText?: Phaser.GameObjects.Text;
   private waveText?: Phaser.GameObjects.Text;
   private toastText?: Phaser.GameObjects.Text;
@@ -105,6 +106,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   create() {
+    this.applyPermanentProgress();
     this.drawMap();
     this.drawHud();
     this.createBuildSlots();
@@ -468,6 +470,7 @@ export class RunScene extends Phaser.Scene {
 
     if (this.fortHp <= 0 && !this.isGameOver) {
       this.isGameOver = true;
+      const reward = this.claimEndOfRunRewards();
       this.add.rectangle(195, 347, 308, 132, 0x17202b, 0.9);
       this.add.text(195, 320, "FORT LOST", {
         color: "#ffffff",
@@ -475,16 +478,16 @@ export class RunScene extends Phaser.Scene {
         fontSize: "26px",
         fontStyle: "bold",
       }).setOrigin(0.5);
-      this.add.text(195, 362, "Refresh to restart this shell", {
+      this.add.text(195, 356, `Earned ${reward} gems`, {
+        color: "#f2c14e",
+        fontFamily: "Arial",
+        fontSize: "17px",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add.text(195, 384, "Tap anywhere to restart", {
         color: "#f7f2e8",
         fontFamily: "Arial",
         fontSize: "15px",
-      }).setOrigin(0.5);
-      this.add.text(195, 391, "Tap anywhere to restart", {
-        color: "#f2c14e",
-        fontFamily: "Arial",
-        fontSize: "15px",
-        fontStyle: "bold",
       }).setOrigin(0.5);
     }
   }
@@ -623,5 +626,20 @@ export class RunScene extends Phaser.Scene {
   private pickUpgrades() {
     const shuffled = Phaser.Utils.Array.Shuffle([...upgradeDefinitions]);
     return shuffled.slice(0, 3);
+  }
+
+  private applyPermanentProgress() {
+    const { permanentUpgrades } = useGameStore.getState().progress;
+    this.maxFortHp = 180 + permanentUpgrades.fortHp * 18;
+    this.fortHp = this.maxFortHp;
+    this.coins = 150 + permanentUpgrades.startingCoins * 15;
+    this.towerDamageMultiplier = 1 + permanentUpgrades.towerDamage * 0.08;
+  }
+
+  private claimEndOfRunRewards() {
+    if (this.runRewardClaimed) return 0;
+
+    this.runRewardClaimed = true;
+    return useGameStore.getState().claimRunRewards(this.wave, this.coins);
   }
 }
