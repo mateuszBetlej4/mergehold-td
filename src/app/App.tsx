@@ -20,7 +20,7 @@ import { buildingDefinitions } from "../data/buildings";
 import { enemyDefinitions } from "../data/enemies";
 import { gameContent } from "../data/gameContent";
 import { heroDefinitions } from "../data/heroes";
-import { mapDefinitions } from "../data/maps";
+import { DEBUG_UNLOCK_ALL_MAPS, mapDefinitions } from "../data/maps";
 import { troopDefinitions } from "../data/troops";
 import { upgradeDefinitions } from "../data/upgrades";
 import { GameCanvas } from "../game/GameCanvas";
@@ -581,7 +581,7 @@ function MapsScreen() {
       <div className="card-list">
         {mapDefinitions.map((map) => {
           const unlockWave = getUnlockWave(map.unlock);
-          const isUnlocked = progress.bestWave >= unlockWave;
+          const isUnlocked = DEBUG_UNLOCK_ALL_MAPS || progress.bestWave >= unlockWave;
           const isSelected = progress.selectedMapId === map.id;
           return (
             <article className={`content-card selectable-card ${isSelected ? "selected" : ""} ${isUnlocked ? "" : "locked"}`} key={map.id}>
@@ -591,7 +591,11 @@ function MapsScreen() {
               <div>
                 <h3>{map.name}</h3>
                 <p>{map.description}</p>
-                <span>{isUnlocked ? map.theme : formatUnlockLabel(map.unlock, progress.bestWave)}</span>
+                <span>
+                  {isUnlocked
+                    ? `${map.theme} · ${map.routeCount} lanes`
+                    : formatUnlockLabel(map.unlock, progress.bestWave)}
+                </span>
                 <button className="select-button" type="button" disabled={!isUnlocked} onClick={() => selectMap(map.id, unlockWave)}>
                   {isSelected ? "Selected" : isUnlocked ? "Select" : "Locked"}
                 </button>

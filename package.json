@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "audit:maps": "tsx scripts/audit-map-layouts.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {

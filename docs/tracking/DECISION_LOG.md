@@ -316,3 +316,51 @@ Record meaningful product and technical decisions here so future development has
 - **P0 wired:** tower fire (3), enemy kill, leak, fort hit, trap, build place/upgrade, wave start/clear, bomber explode, defeat sting.
 - **Implemented:** `public/assets/optimized/audio/**`, `sounds.ts`, `audioManager.ts`, `menuMusic.ts`, `RunScene.ts`, `App.tsx`, `ASSET_CREDITS.md`; `npm run build`.
 - **Deferred (P1+):** React UI clicks, boss layer, shield-hit, hero abilities, MP3 fallbacks.
+
+## DEC-034: Data-Driven Per-Map Lane Layouts
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Context:** Map selection only changed palette tints; all four maps shared one hardcoded path, pads, fort, and decor in `RunScene.ts`.
+- **Research (chokepoints vs systems):**
+  - **Archer T1 range 166** — pads validated ≤124px from path polyline on all maps; old Greenwatch pad `(292,142)` was ~103px blind on diagonal leg 2.
+  - **Cannon splash 42** — Sunspire/Frostgate include long straight segments for splash value; Greenwatch cannon pad at `(310,318)` covers bend `(286,300)`.
+  - **Flyers (bat W6+)** — ignore traps; Sunspire has 4 trap pads (fewest) and 5 tower pads; Underkeep has 7 trap pads but 5 tower pads for archer/magic coverage.
+  - **Bombers (W8+)** — double fort hit on leak; Sunspire ~24% shorter path (469 vs 619px) increases pressure; Frostgate +10% longer (681px) + final straight for DPS.
+  - **Boss (W5/10)** — Frostgate 7 tower pads with 3+ covering last 120px of approach; shared `waves.ts` unchanged.
+- **Decision:**
+  - **`src/data/mapLayouts.ts`** — `MapLayout` per `mapId`: path waypoints, tower/trap pads, fort/hero/fortFx, mage ability center, trees.
+  - **`RunScene`** resolves layout from `progress.selectedMapId` in `applyLoadout()`; no module-level coordinates.
+  - **Shared wave tables** for MVP; difficulty skew from geometry only.
+  - **Polyline waypoints only** — 4–7 points per map; no branches.
+- **Layouts shipped:**
+  | Map | Path length (approx) | Tower pads | Trap pads | Fantasy |
+  |-----|---------------------:|-----------:|----------:|---------|
+  | `greenwatch` | 619px | 6 | 5 | Teaching S-curve + choke at `(96,200)`/`(286,300)`; extra waypoint `(195,380)` |
+  | `sunspire` | 469px | 5 | 4 | Open desert, faster pressure |
+  | `frostgate` | 681px | 7 | 5 | Longer lane, boss approach focus |
+  | `underkeep` | 965px | 5 | 7 | Zig-zag dungeon, trap-focused |
+- **Playtest (390×844, guardian, strategy B archer+cannon):** Greenwatch W1–8 viable; alternate maps selectable with distinct geometry; build passes.
+- **Implemented:** `mapLayouts.ts`, `RunScene.ts`; `npm run build`.
+- **Deferred:** Map preview thumbnails, dedicated rock/pillar sprites (using tinted shapes for now).
+
+### DEC-034 follow-up (multi-route + per-map waves)
+
+- **Date:** 2026-05-18
+- **Trigger:** Maps felt identical; trap pads off-path; user requested branching lanes, smarter enemies, per-map waves.
+- **Decision:**
+  - **`routes[]`** per map (2–3 lanes) with shared merge before fort; path dots drawn for all lanes (dimmed alternates).
+  - **Trap pads** snapped on-path via `trapOnPath` specs (`segmentIndex` + `t`).
+  - **Route AI on spawn:** flyers avoid trap-heavy lanes; runners/bombers shortest; tanks/bosses longer/lower threat; grunts/shields lowest tower threat (+28% random 2nd pick).
+  - **`mapWaves.ts`** — per-map count/interval/HP profile + key wave overrides (Sunspire faster, Frostgate tankier W4/W10, Underkeep trap waves).
+  - **`DEBUG_UNLOCK_ALL_MAPS = true`** in `maps.ts` for inspection (revert before ship).
+  - **Decor:** trees / tinted rocks / pillars per theme.
+- **Implemented:** `mapPathUtils.ts`, `mapLayouts.ts`, `mapWaves.ts`, `RunScene.ts`, `maps.ts`, `App.tsx`, `useGameStore.ts`.
+- **Playtest:** `docs/playtest/2026-05-18-map-layout-audit.md` + screenshots per map.
+
+### DEC-034 follow-up — tower pads off-path (2026-05-18)
+
+- **Trigger:** Playtest screenshots showed tower `+` pads overlapping brown path tiles; traps belong on-path, towers off-path.
+- **Decision:** `pushTowerPadsOffPath()` in `mapPathUtils.ts` runs at layout resolve — each tower pad ≥**56px** from every route segment (iterative, all lanes). Traps remain on-path via `trapOnPath` + spike icon at pad.
+- **Validation:** `npm run audit:maps` (`scripts/audit-map-layouts.mjs`) fails towers &lt;48px from path or pads &lt;54px apart.
+- **Implemented:** `mapPathUtils.ts`, `mapLayouts.ts` resolve step; trap visual in `RunScene.createTrapSlots()`.

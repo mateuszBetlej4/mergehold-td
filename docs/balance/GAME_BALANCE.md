@@ -377,7 +377,25 @@ Expect 2–3 towers or tiers for comfortable boss kills.
 
 ---
 
-## 15. Deferred / known gaps
+## 15. Map layouts & waves (DEC-034)
+
+Geometry: `src/data/mapLayouts.ts` — **multiple routes per map**, traps on-path, decor per theme.  
+Waves: `src/data/mapWaves.ts` — scaled tables + overrides per `mapId`.
+
+| Map | Routes | Traps (on-path) | Wave profile |
+|-----|--------|-----------------|--------------|
+| Greenwatch | 2 (west / east → merge) | 6 | Baseline |
+| Sunspire | 2 (ridge / dune) | 4 | +20% count, −12% interval, +2 HP |
+| Frostgate | 3 (west / center / east) | 6 | +15% count, +4 HP, heavier W4/W10 |
+| Underkeep | 2 (gauntlet / crypt) | 9 | +25% count, −10% interval, trap-heavy W7–8 |
+
+**Route AI (spawn):** enemies pick a lane from tower/trap threat + archetype (flyer → fewer traps, runner → shortest, etc.).
+
+**Debug:** `DEBUG_UNLOCK_ALL_MAPS` in `maps.ts` — set `false` before release.
+
+---
+
+## 16. Deferred / known gaps
 
 | Item | Tracker |
 |------|---------|
@@ -387,7 +405,7 @@ Expect 2–3 towers or tiers for comfortable boss kills.
 
 ---
 
-## 16. Changelog
+## 17. Changelog
 
 | Date | Change |
 |------|--------|
@@ -396,10 +414,11 @@ Expect 2–3 towers or tiers for comfortable boss kills.
 | 2026-05-18 | **DEC-025:** Tiered enemy introduction (superseded spawn *count* logic in DEC-029). |
 | 2026-05-18 | **DEC-031:** Economy pass — grunt/runner/boss rewards, mill income 15, stipend 35 + boss bonus, fort gem coin cap, Merchant's Ledger meta upgrade. |
 | 2026-05-18 | **DEC-032:** Combat/economy sinks — higher build/tier costs, HP scale `+wave×6`, tank/shield/boss HP, wave 4/7–9 pressure, stipend 25+10 boss. |
+| 2026-05-18 | **DEC-034:** Per-map layouts in `mapLayouts.ts`; four distinct paths/pads; shared waves. |
 
 ---
 
-## 17. Quick file index
+## 18. Quick file index
 
 ```text
 src/data/enemies.ts      — base enemy stats
@@ -408,6 +427,7 @@ src/data/buildings.ts    — tower/support bases
 src/data/upgrades.ts     — roguelike cards
 src/data/troops.ts       — barracks units
 src/data/heroes.ts       — hero roster
+src/data/mapLayouts.ts   — per-map path, pads, fort, decor
 src/game/scenes/RunScene.ts — all runtime formulas
 src/state/useGameStore.ts — gems + permanent upgrades
 ```

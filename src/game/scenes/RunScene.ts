@@ -2,10 +2,12 @@ import Phaser from "phaser";
 import { buildingDefinitions, padTierUpgradeCost } from "../../data/buildings";
 import { enemyDefinitions, type EnemyDefinition } from "../../data/enemies";
 import { heroDefinitions } from "../../data/heroes";
+import { getMapLayout, type MapDecor, type MapLayout } from "../../data/mapLayouts";
+import { scoreRoute, type PathRoute } from "../../data/mapPathUtils";
+import { getMapWaveProfile, getMapWaveSpawnGroups } from "../../data/mapWaves";
 import { mapDefinitions } from "../../data/maps";
 import { troopDefinitions, type TroopDefinition } from "../../data/troops";
 import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
-import { getWaveSpawnGroups } from "../../data/waves";
 import { useGameStore } from "../../state/useGameStore";
 import {
   gameBridge,
@@ -21,6 +23,8 @@ type Enemy = {
   body: Phaser.GameObjects.Image;
   hpBar: Phaser.GameObjects.Rectangle;
   pathIndex: number;
+  routeId: string;
+  laneWaypoints: Phaser.Math.Vector2[];
   enemyId: string;
   archetype: EnemyDefinition["archetype"];
   hp: number;
@@ -109,14 +113,6 @@ type FriendlyTroop = {
   tint: number;
 };
 
-const path = [
-  new Phaser.Math.Vector2(195, 28),
-  new Phaser.Math.Vector2(195, 108),
-  new Phaser.Math.Vector2(96, 200),
-  new Phaser.Math.Vector2(286, 300),
-  new Phaser.Math.Vector2(195, 448),
-];
-
 const starterTowers = buildingDefinitions.filter((building) => building.role === "tower").slice(0, 3);
 const spikeTrapDefinition =
   buildingDefinitions.find((building) => building.id === "spike-trap") ?? buildingDefinitions[3];
@@ -130,14 +126,6 @@ const healingShrineDefinition =
   buildingDefinitions.find((building) => building.id === "healing-shrine") ?? buildingDefinitions[7];
 
 const maxFriendlyTroops = 10;
-
-const trapPadPositions: [number, number][] = [
-  [168, 82],
-  [72, 188],
-  [318, 288],
-  [248, 372],
-  [168, 418],
-];
 
 const towerAssetKeys: Record<string, string> = {
   "archer-tower": "kenney-tower-archer",
@@ -236,6 +224,9 @@ export class RunScene extends Phaser.Scene {
     path: 0xd9c59f,
     hud: 0x17202b,
   };
+  private layout!: MapLayout;
+  private activeMapId = "greenwatch";
+  private mapHpBonus = 0;
 
   constructor() {
     super("RunScene");
@@ -315,11 +306,35 @@ export class RunScene extends Phaser.Scene {
   private drawMap() {
     this.drawGroundTiles();
     this.drawPathTiles();
-    this.add.image(36, 104, "kenney-tree").setScale(0.72).setTint(this.palette.hud).setDepth(1);
-    this.add.image(345, 104, "kenney-tree").setScale(0.64).setTint(this.palette.hud).setDepth(1);
-    this.add.image(52, 526, "kenney-tree").setScale(0.6).setTint(this.palette.hud).setDepth(1);
-    this.add.image(345, 565, "kenney-tree").setScale(0.74).setTint(this.palette.hud).setDepth(1);
-    this.add.image(195, 500, "fort").setScale(0.78).setDepth(12);
+    this.layout.decor.forEach((piece) => this.drawDecor(piece));
+    this.add.image(this.layout.fort.x, this.layout.fort.y, "fort").setScale(0.78).setDepth(12);
+  }
+
+  private drawDecor(piece: MapDecor) {
+    if (piece.kind === "tree") {
+      this.add
+        .image(piece.x, piece.y, "kenney-tree")
+        .setScale(piece.scale ?? 0.64)
+        .setTint(this.palette.hud)
+        .setDepth(1);
+      return;
+    }
+
+    const tint = piece.tint ?? this.palette.hud;
+    if (piece.kind === "rock") {
+      const scale = piece.scale ?? 1;
+      this.add.circle(piece.x, piece.y, 14 * scale, tint, 0.85).setDepth(1);
+      this.add.circle(piece.x - 4, piece.y - 3, 8 * scale, tint, 0.55).setDepth(1);
+      return;
+    }
+
+    const scale = piece.scale ?? 1;
+    this.add
+      .rectangle(piece.x, piece.y, 12 * scale, 28 * scale, tint, 0.9)
+      .setDepth(1);
+    this.add
+      .rectangle(piece.x, piece.y - 14 * scale, 18 * scale, 8 * scale, tint, 0.75)
+      .setDepth(1);
   }
 
   private drawGroundTiles() {
@@ -341,24 +356,31 @@ export class RunScene extends Phaser.Scene {
   }
 
   private drawPathTiles() {
-    for (let index = 0; index < path.length - 1; index += 1) {
-      const start = path[index];
-      const end = path[index + 1];
-      const segmentLength = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
-      const steps = Math.max(1, Math.floor(segmentLength / pathDotSpacing));
+    const routeCount = this.layout.routes.length;
+    this.layout.routes.forEach((route, routeIndex) => {
+      const waypoints = route.waypoints.map((p) => new Phaser.Math.Vector2(p.x, p.y));
+      const alpha = routeCount > 1 ? 0.82 - routeIndex * 0.14 : 0.9;
+      const scale = 0.42 - routeIndex * 0.03;
 
-      for (let step = 0; step <= steps; step += 1) {
-        const t = step / steps;
-        const x = Phaser.Math.Linear(start.x, end.x, t);
-        const y = Phaser.Math.Linear(start.y, end.y, t);
-        this.add
-          .image(x, y, "kenney-path-dot")
-          .setScale(0.42)
-          .setTint(this.palette.path)
-          .setAlpha(0.88)
-          .setDepth(2);
+      for (let index = 0; index < waypoints.length - 1; index += 1) {
+        const start = waypoints[index];
+        const end = waypoints[index + 1];
+        const segmentLength = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
+        const steps = Math.max(1, Math.floor(segmentLength / pathDotSpacing));
+
+        for (let step = 0; step <= steps; step += 1) {
+          const t = step / steps;
+          const x = Phaser.Math.Linear(start.x, end.x, t);
+          const y = Phaser.Math.Linear(start.y, end.y, t);
+          this.add
+            .image(x, y, "kenney-path-dot")
+            .setScale(Math.max(0.34, scale))
+            .setTint(this.palette.path)
+            .setAlpha(Math.max(0.45, alpha))
+            .setDepth(2);
+        }
       }
-    }
+    });
   }
 
   private bindGameBridge() {
@@ -502,16 +524,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createBuildSlots() {
-    const slots = [
-      [98, 128],
-      [292, 142],
-      [75, 318],
-      [315, 408],
-      [124, 448],
-      [278, 228],
-    ];
-
-    slots.forEach(([x, y]) => {
+    this.layout.towerPads.forEach(({ x, y }) => {
       const slot = this.add.circle(x, y, 26, 0xffffff, 0.12)
         .setStrokeStyle(2, 0xffffff, 0.35)
         .setDepth(3)
@@ -523,17 +536,27 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createTrapSlots() {
-    trapPadPositions.forEach(([x, y]) => {
-      const slot = this.add.circle(x, y, 18, 0x17202b, 0.22)
-        .setStrokeStyle(1.5, 0xffffff, 0.28)
+    this.layout.trapPads.forEach(({ x, y }) => {
+      const slot = this.add.circle(x, y, 20, 0x17202b, 0.28)
+        .setStrokeStyle(2, 0xf2c14e, 0.45)
         .setDepth(3);
 
       this.trapSlots.push(slot as unknown as Phaser.GameObjects.Rectangle);
+      this.add
+        .image(x, y, "spike-trap")
+        .setScale(0.32)
+        .setAlpha(0.55)
+        .setTint(0xf2c14e)
+        .setDepth(4);
     });
   }
 
   private createHero() {
-    this.add.image(195, 508, "hero-guardian").setScale(0.44).setTint(this.heroTint).setDepth(14);
+    this.add
+      .image(this.layout.hero.x, this.layout.hero.y, "hero-guardian")
+      .setScale(0.44)
+      .setTint(this.heroTint)
+      .setDepth(14);
   }
 
   private tryBuildOrMerge(x: number, y: number) {
@@ -1047,7 +1070,7 @@ export class RunScene extends Phaser.Scene {
       damage -= absorbed;
 
       if (absorbed > 0) {
-        this.flashCircle(195, 584, 42, stoneWallDefinition.color);
+        this.flashCircle(this.layout.fortFx.x, this.layout.fortFx.y, 42, stoneWallDefinition.color);
       }
     }
 
@@ -1079,7 +1102,7 @@ export class RunScene extends Phaser.Scene {
           ease: "Sine.easeOut",
         });
       });
-      this.flashCircle(195, 584, 52, healingShrineDefinition.color);
+      this.flashCircle(this.layout.fortFx.x, this.layout.fortFx.y, 52, healingShrineDefinition.color);
     }
 
     return healed;
@@ -1234,7 +1257,7 @@ export class RunScene extends Phaser.Scene {
 
   private spawnWave() {
     this.waveReadyForClear = false;
-    const groups = getWaveSpawnGroups(this.wave);
+    const groups = getMapWaveSpawnGroups(this.activeMapId, this.wave);
     let delay = 0;
 
     groups.forEach((group) => {
@@ -1271,12 +1294,51 @@ export class RunScene extends Phaser.Scene {
     this.showToast(`Wave ${this.wave} incoming`);
   }
 
+  private pickEnemyRoute(definition: EnemyDefinition): PathRoute {
+    const trapPoints = this.layout.trapPads;
+    const towerSamples = this.towers.map((tower) => ({
+      x: tower.body.x,
+      y: tower.body.y,
+      range: tower.range,
+      dps: (tower.damage * 1000) / tower.fireRateMs,
+    }));
+
+    const scored = this.layout.routes.map((route) => ({
+      route,
+      ...scoreRoute(route.waypoints, towerSamples, trapPoints),
+    }));
+
+    const pick = (compare: (a: (typeof scored)[0], b: (typeof scored)[0]) => number) =>
+      [...scored].sort(compare)[0].route;
+
+    if (definition.archetype === "flyer") {
+      return pick((a, b) => a.trapSlots - b.trapSlots || a.length - b.length);
+    }
+    if (definition.archetype === "runner" || definition.speed >= 1.5) {
+      return pick((a, b) => a.length - b.length);
+    }
+    if (definition.archetype === "exploder") {
+      return pick((a, b) => a.length - b.length || a.towerThreat - b.towerThreat);
+    }
+    if (definition.archetype === "boss" || definition.archetype === "tank") {
+      return pick((a, b) => b.length - a.length || a.towerThreat - b.towerThreat);
+    }
+
+    const byThreat = [...scored].sort(
+      (a, b) => a.towerThreat - b.towerThreat || a.trapSlots - b.trapSlots || a.length - b.length,
+    );
+    if (Math.random() < 0.28 && byThreat.length > 1) return byThreat[1].route;
+    return byThreat[0].route;
+  }
+
   private spawnEnemy(definition: EnemyDefinition) {
+    const route = this.pickEnemyRoute(definition);
+    const laneWaypoints = route.waypoints.map((point) => new Phaser.Math.Vector2(point.x, point.y));
     const assetKey = enemyAssetKeys[definition.id] ?? "kenney-enemy-grunt";
     const isBoss = definition.archetype === "boss";
     const usesSvg = assetKey === "enemy-runner" || assetKey === "enemy-grunt";
     const body = this.add
-      .image(path[0].x, path[0].y, assetKey)
+      .image(laneWaypoints[0].x, laneWaypoints[0].y, assetKey)
       .setScale(isBoss ? 0.58 : 0.46)
       .setDepth(16);
 
@@ -1288,12 +1350,14 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(17);
 
-    const scaledHp = definition.hp + this.wave * 6;
+    const scaledHp = definition.hp + this.wave * 6 + this.mapHpBonus;
 
     this.enemies.push({
       body,
       hpBar,
       pathIndex: 1,
+      routeId: route.id,
+      laneWaypoints,
       enemyId: definition.id,
       archetype: definition.archetype,
       hp: scaledHp,
@@ -1309,7 +1373,7 @@ export class RunScene extends Phaser.Scene {
 
   private moveEnemies(delta: number) {
     this.enemies = this.enemies.filter((enemy) => {
-      const currentTarget = path[enemy.pathIndex];
+      const currentTarget = enemy.laneWaypoints[enemy.pathIndex];
 
       if (!currentTarget) {
         enemy.body.destroy();
@@ -1318,7 +1382,7 @@ export class RunScene extends Phaser.Scene {
           this.audio?.play("enemy-bomber-explode");
           this.applyFortDamage(enemy.damageToFort);
           this.applyFortDamage(Math.ceil(enemy.damageToFort * 0.55));
-          this.flashCircle(195, 584, 72, 0xb5442f);
+          this.flashCircle(this.layout.fortFx.x, this.layout.fortFx.y, 72, 0xb5442f);
         } else {
           this.audio?.play("enemy-leak");
           this.applyFortDamage(enemy.damageToFort);
@@ -1328,7 +1392,7 @@ export class RunScene extends Phaser.Scene {
 
       if (Phaser.Math.Distance.Between(enemy.body.x, enemy.body.y, currentTarget.x, currentTarget.y) < 8) {
         enemy.pathIndex += 1;
-        const nextTarget = path[enemy.pathIndex];
+        const nextTarget = enemy.laneWaypoints[enemy.pathIndex];
         if (nextTarget) {
           const nextAngle = Phaser.Math.Angle.Between(
             enemy.body.x,
@@ -1604,7 +1668,7 @@ export class RunScene extends Phaser.Scene {
 
     if (this.selectedHeroRole === "guardian") {
       this.fortHp = Math.min(this.maxFortHp, this.fortHp + 55);
-      this.flashCircle(195, 584, 92, 0xf2c14e);
+      this.flashCircle(this.layout.fortFx.x, this.layout.fortFx.y, 92, 0xf2c14e);
       this.showToast("Fort shield restored HP");
       return;
     }
@@ -1615,7 +1679,10 @@ export class RunScene extends Phaser.Scene {
         .slice(0, 3);
       targets.forEach((enemy) => {
         this.damageEnemy(enemy, 72, "hero");
-        const tracer = this.add.line(0, 0, 195, 530, enemy.body.x, enemy.body.y, 0xf2c14e, 0.85).setOrigin(0).setDepth(50);
+        const tracer = this.add
+          .line(0, 0, this.layout.hero.x, this.layout.hero.y - 8, enemy.body.x, enemy.body.y, 0xf2c14e, 0.85)
+          .setOrigin(0)
+          .setDepth(50);
         this.tweens.add({ targets: tracer, alpha: 0, duration: 260, onComplete: () => tracer.destroy() });
       });
       this.showToast("Piercing volley fired");
@@ -1623,7 +1690,8 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.enemies.forEach((enemy) => this.damageEnemy(enemy, 46, "hero"));
-    this.flashCircle(195, 326, 170, 0xb85c38);
+    const { x, y } = this.layout.mageAbilityCenter;
+    this.flashCircle(x, y, 170, 0xb85c38);
     this.showToast("Meteor sigil burned the lane");
   }
 
@@ -1855,6 +1923,10 @@ export class RunScene extends Phaser.Scene {
       path: parseHexColor(selectedMap.palette.path, 0xd9c59f),
       hud: parseHexColor(selectedMap.palette.accent, 0x17202b),
     };
+
+    this.activeMapId = selectedMapId;
+    this.layout = getMapLayout(selectedMapId);
+    this.mapHpBonus = getMapWaveProfile(selectedMapId).hpBonus;
 
     this.maxFortHp = 180 + permanentUpgrades.fortHp * 18;
     this.fortHp = this.maxFortHp;

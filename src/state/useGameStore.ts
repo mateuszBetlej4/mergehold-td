@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { DEBUG_UNLOCK_ALL_MAPS } from "../data/maps";
 
 export type AppScreen =
   | "home"
@@ -316,7 +317,7 @@ export const useGameStore = create<GameStore>((set) => ({
   selectMap: (id, unlockWave) => {
     let didSelect = false;
     set((state) => {
-      if (state.progress.bestWave < unlockWave) return state;
+      if (!DEBUG_UNLOCK_ALL_MAPS && state.progress.bestWave < unlockWave) return state;
 
       didSelect = true;
       const nextProgress = {
