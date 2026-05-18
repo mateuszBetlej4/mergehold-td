@@ -32,4 +32,4 @@ Source URL: https://opengameart.org/content/tower-defense-300-tilessprites
 License: Creative Commons CC0
 License URL: https://creativecommons.org/publicdomain/zero/1.0/
 Runtime path: `public/assets/source/kenney/tower-defense-top-down`, `public/assets/optimized/sprites/kenney-*.png`
-Notes: Original pack by Kenney.nl. Runtime selection currently uses towers, enemy units, projectiles, and trees.
+Notes: Original pack by Kenney.nl. Runtime selection uses towers, enemy units, grass/path tiles, projectiles, and trees. Bat and bomber use project SVG silhouettes tinted per enemy data; archer shots use `projectile-arrow.svg`.

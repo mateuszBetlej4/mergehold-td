@@ -22,12 +22,15 @@ type Enemy = {
   speed: number;
   reward: number;
   damageToFort: number;
+  tint: number;
+  isBoss: boolean;
 };
 
 type Tower = {
   body: Phaser.GameObjects.Image;
   badgeBg: Phaser.GameObjects.Arc;
   badge: Phaser.GameObjects.Text;
+  towerId: string;
   tier: number;
   damage: number;
   range: number;
@@ -95,6 +98,7 @@ type FriendlyTroop = {
   lastAttackAt: number;
   lastHurtAt: number;
   role: TroopDefinition["role"];
+  tint: number;
 };
 
 const path = [
@@ -138,10 +142,25 @@ const enemyAssetKeys: Record<string, string> = {
   runner: "kenney-enemy-runner",
   tank: "kenney-enemy-tank",
   shield: "kenney-enemy-shield",
-  bat: "kenney-enemy-runner",
-  bomber: "kenney-enemy-grunt",
+  bat: "enemy-runner",
+  bomber: "enemy-grunt",
   gatebreaker: "kenney-enemy-boss",
 };
+
+const projectileAssetKeys: Record<string, string> = {
+  "archer-tower": "projectile-arrow",
+  "cannon-tower": "kenney-projectile",
+  "magic-tower": "kenney-projectile",
+};
+
+const troopRoleTints: Record<TroopDefinition["role"], number> = {
+  blocker: 0x546a7b,
+  ranged: 0x2f5d8c,
+  burst: 0xb85c38,
+};
+
+const groundTileSize = 64;
+const pathDotSpacing = 26;
 
 export class RunScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
@@ -203,7 +222,12 @@ export class RunScene extends Phaser.Scene {
     this.load.image("kenney-enemy-shield", "/assets/optimized/sprites/kenney-enemy-shield.png");
     this.load.image("kenney-enemy-boss", "/assets/optimized/sprites/kenney-enemy-boss.png");
     this.load.image("kenney-tree", "/assets/optimized/sprites/kenney-tree.png");
+    this.load.image("kenney-grass", "/assets/optimized/sprites/kenney-grass.png");
+    this.load.image("kenney-path-dot", "/assets/optimized/sprites/kenney-path-dot.png");
     this.load.image("kenney-projectile", "/assets/optimized/sprites/kenney-projectile.png");
+    this.load.svg("enemy-runner", "/assets/optimized/sprites/enemy-runner.svg", { width: 64, height: 64 });
+    this.load.svg("enemy-grunt", "/assets/optimized/sprites/enemy-grunt.svg", { width: 64, height: 64 });
+    this.load.svg("projectile-arrow", "/assets/optimized/sprites/projectile-arrow.svg", { width: 32, height: 32 });
     this.load.svg("spike-trap", "/assets/optimized/sprites/spike-trap.svg", { width: 64, height: 64 });
     this.load.svg("barracks", "/assets/optimized/sprites/barracks.svg", { width: 64, height: 64 });
     this.load.svg("coin-mill", "/assets/optimized/sprites/coin-mill.svg", { width: 64, height: 64 });
@@ -248,24 +272,64 @@ export class RunScene extends Phaser.Scene {
   }
 
   private drawMap() {
-    this.add.rectangle(195, 347, 390, 694, this.palette.ground);
+    this.drawGroundTiles();
+    this.drawPathTiles();
     this.add.image(36, 104, "kenney-tree").setScale(0.72).setTint(this.palette.hud).setDepth(1);
     this.add.image(345, 104, "kenney-tree").setScale(0.64).setTint(this.palette.hud).setDepth(1);
     this.add.image(52, 526, "kenney-tree").setScale(0.6).setTint(this.palette.hud).setDepth(1);
     this.add.image(345, 565, "kenney-tree").setScale(0.74).setTint(this.palette.hud).setDepth(1);
 
     const graphics = this.add.graphics();
-    graphics.setDepth(2);
-    graphics.lineStyle(44, this.palette.path, 1);
+    graphics.setDepth(3);
+    graphics.lineStyle(40, this.palette.path, 0.72);
     graphics.beginPath();
     graphics.moveTo(path[0].x, path[0].y);
     path.slice(1).forEach((point) => graphics.lineTo(point.x, point.y));
     graphics.strokePath();
 
-    graphics.lineStyle(4, this.palette.hud, 0.54);
+    graphics.lineStyle(3, this.palette.hud, 0.45);
     graphics.strokePath();
 
     this.add.image(195, 500, "fort").setScale(0.78).setDepth(12);
+  }
+
+  private drawGroundTiles() {
+    const cols = Math.ceil(390 / groundTileSize);
+    const rows = Math.ceil(694 / groundTileSize);
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const x = col * groundTileSize + groundTileSize / 2;
+        const y = row * groundTileSize + groundTileSize / 2;
+        this.add
+          .image(x, y, "kenney-grass")
+          .setDisplaySize(groundTileSize + 1, groundTileSize + 1)
+          .setTint(this.palette.ground)
+          .setAlpha(0.9)
+          .setDepth(0);
+      }
+    }
+  }
+
+  private drawPathTiles() {
+    for (let index = 0; index < path.length - 1; index += 1) {
+      const start = path[index];
+      const end = path[index + 1];
+      const segmentLength = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
+      const steps = Math.max(1, Math.floor(segmentLength / pathDotSpacing));
+
+      for (let step = 0; step <= steps; step += 1) {
+        const t = step / steps;
+        const x = Phaser.Math.Linear(start.x, end.x, t);
+        const y = Phaser.Math.Linear(start.y, end.y, t);
+        this.add
+          .image(x, y, "kenney-path-dot")
+          .setScale(0.42)
+          .setTint(this.palette.path)
+          .setAlpha(0.88)
+          .setDepth(2);
+      }
+    }
   }
 
   private bindGameBridge() {
@@ -570,6 +634,7 @@ export class RunScene extends Phaser.Scene {
       body,
       badgeBg,
       badge,
+      towerId: definition.id,
       tier: 1,
       damage: definition.stats.damage * this.towerDamageMultiplier,
       range: definition.stats.range,
@@ -989,10 +1054,11 @@ export class RunScene extends Phaser.Scene {
     const troopDefinition = this.getTroopDefinitionForTier(barracksBuilding.tier);
     const spawnX = barracksBuilding.body.x + Phaser.Math.Between(-10, 10);
     const spawnY = barracksBuilding.body.y + Phaser.Math.Between(-8, 8);
+    const troopTint = troopRoleTints[troopDefinition.role];
     const body = this.add
       .image(spawnX, spawnY, "hero-guardian")
       .setScale(0.28)
-      .setTint(barracksDefinition.color)
+      .setTint(troopTint)
       .setDepth(13);
     const hpBar = this.add
       .rectangle(body.x, body.y - 18, 20, 3, 0x216869)
@@ -1013,6 +1079,7 @@ export class RunScene extends Phaser.Scene {
       lastAttackAt: 0,
       lastHurtAt: 0,
       role: troopDefinition.role,
+      tint: troopTint,
     });
   }
 
@@ -1054,7 +1121,7 @@ export class RunScene extends Phaser.Scene {
           troop.hp -= 10;
           troop.body.setTintFill(0xff6b6b);
           this.time.delayedCall(80, () => {
-            if (troop.body.active) troop.body.setTint(barracksDefinition.color);
+            if (troop.body.active) troop.body.setTint(troop.tint);
           });
           if (troop.role === "blocker" && contactDistance < 18) {
             enemy.body.x -= (enemy.body.x - troop.body.x) * 0.04;
@@ -1164,9 +1231,17 @@ export class RunScene extends Phaser.Scene {
 
   private spawnEnemy(definition: EnemyDefinition) {
     const assetKey = enemyAssetKeys[definition.id] ?? "kenney-enemy-grunt";
-    const body = this.add.image(path[0].x, path[0].y, assetKey)
-      .setScale(definition.archetype === "boss" ? 0.58 : 0.46)
+    const isBoss = definition.archetype === "boss";
+    const usesSvg = assetKey === "enemy-runner" || assetKey === "enemy-grunt";
+    const body = this.add
+      .image(path[0].x, path[0].y, assetKey)
+      .setScale(isBoss ? 0.58 : 0.46)
       .setDepth(16);
+
+    if (usesSvg) {
+      body.setTint(definition.color);
+    }
+
     const hpBar = this.add.rectangle(body.x, body.y - 28, 28, 4, 0x4f9d69)
       .setOrigin(0.5)
       .setDepth(17);
@@ -1180,6 +1255,8 @@ export class RunScene extends Phaser.Scene {
       speed: (0.046 + this.wave * 0.0015) * definition.speed,
       reward: Math.ceil(definition.reward * this.rewardMultiplier),
       damageToFort: Math.ceil(definition.damageToFort * 0.55),
+      tint: usesSvg ? definition.color : 0xffffff,
+      isBoss,
     });
   }
 
@@ -1203,7 +1280,7 @@ export class RunScene extends Phaser.Scene {
       enemy.body.x += Math.cos(angle) * enemy.speed * delta;
       enemy.body.y += Math.sin(angle) * enemy.speed * delta;
       enemy.body.rotation = angle + Math.PI / 2;
-      enemy.body.scale = (enemy.body.texture.key === "kenney-enemy-boss" ? 0.82 : 0.9) + (enemy.hp / enemy.maxHp) * 0.08;
+      enemy.body.scale = (enemy.isBoss ? 0.82 : 0.9) + (enemy.hp / enemy.maxHp) * 0.08;
       enemy.hpBar.setPosition(enemy.body.x, enemy.body.y - 30);
       enemy.hpBar.width = Math.max(3, 28 * (enemy.hp / enemy.maxHp));
       return enemy.hp > 0 && this.fortHp > 0;
@@ -1224,8 +1301,10 @@ export class RunScene extends Phaser.Scene {
     if (!target) return;
 
     tower.lastShotAt = time;
+    const projectileKey = projectileAssetKeys[tower.towerId] ?? "kenney-projectile";
+    const projectileScale = projectileKey === "projectile-arrow" ? 0.62 : 0.55;
     this.projectiles.push({
-      body: this.add.image(tower.body.x, tower.body.y, "kenney-projectile").setScale(0.55).setDepth(18),
+      body: this.add.image(tower.body.x, tower.body.y, projectileKey).setScale(projectileScale).setDepth(18),
       target,
       damage: tower.damage,
       speed: 0.42,
@@ -1437,7 +1516,12 @@ export class RunScene extends Phaser.Scene {
     enemy.hp -= damage;
     enemy.body.setTintFill(0xffffff);
     this.time.delayedCall(80, () => {
-      if (enemy.body.active) enemy.body.clearTint();
+      if (!enemy.body.active) return;
+      if (enemy.tint === 0xffffff) {
+        enemy.body.clearTint();
+      } else {
+        enemy.body.setTint(enemy.tint);
+      }
     });
 
     if (enemy.hp <= 0) {
