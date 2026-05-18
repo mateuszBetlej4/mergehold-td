@@ -1,5 +1,5 @@
-/** Temporary — all maps selectable for layout inspection */
-export const DEBUG_UNLOCK_ALL_MAPS = true;
+/** Production map gating: unlock maps from the player's best cleared wave. */
+export const DEBUG_UNLOCK_ALL_MAPS = false;
 
 export type MapDefinition = {
   id: string;
@@ -53,4 +53,3 @@ export const mapDefinitions: MapDefinition[] = [
     palette: { ground: "#5d635c", path: "#9b8c73", accent: "#6856a3" },
   },
 ];
-

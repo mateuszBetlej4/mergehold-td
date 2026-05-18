@@ -26,6 +26,7 @@ import { upgradeDefinitions } from "../data/upgrades";
 import { GameCanvas } from "../game/GameCanvas";
 import { CatalogStatGrid } from "./CatalogStatGrid";
 import { CatalogThumb } from "./CatalogThumb";
+import { AuthPanel } from "./AuthPanel";
 import {
   getBuildingCatalogStats,
   getEnemyCatalogStats,
@@ -38,6 +39,7 @@ import { PlayHud } from "./PlayHud";
 import { useCallback, useEffect, useState } from "react";
 import { primeMenuMusic, stopMenuMusic, syncMenuMusic } from "../game/audio/menuMusic";
 import { gameBridge } from "../game/gameBridge";
+import { useAuth } from "../hooks/useAuth";
 import {
   getUnlockWave,
   permanentUpgradeDefinitions,
@@ -65,6 +67,7 @@ export function App() {
   const activeScreen = useGameStore((state) => state.activeScreen);
   const musicEnabled = useGameStore((state) => state.musicEnabled);
   const setActiveScreen = useGameStore((state) => state.setActiveScreen);
+  const auth = useAuth();
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [pendingLeaveScreen, setPendingLeaveScreen] = useState<AppScreen | null>(null);
 
@@ -137,7 +140,7 @@ export function App() {
         </div>
 
         <div className={`screen-body ${activeScreen === "play" ? "is-play" : ""}`}>
-          {renderScreen(activeScreen, navigateTo, leaveHandlers)}
+          {renderScreen(activeScreen, navigateTo, leaveHandlers, auth)}
         </div>
 
         <nav className="bottom-nav" aria-label="Main navigation">
@@ -214,6 +217,7 @@ function renderScreen(
   screen: AppScreen,
   navigateTo: (screen: AppScreen) => void,
   leaveHandlers: LeavePlayHandlers,
+  auth: ReturnType<typeof useAuth>,
 ) {
   switch (screen) {
     case "play":
@@ -235,7 +239,7 @@ function renderScreen(
     case "maps":
       return <MapsScreen />;
     case "settings":
-      return <SettingsScreen />;
+      return <SettingsScreen auth={auth} />;
     case "deploy":
       return <DeployScreen />;
     default:
@@ -608,7 +612,7 @@ function MapsScreen() {
   );
 }
 
-function SettingsScreen() {
+function SettingsScreen({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const soundEnabled = useGameStore((state) => state.soundEnabled);
   const musicEnabled = useGameStore((state) => state.musicEnabled);
   const toggleSound = useGameStore((state) => state.toggleSound);
@@ -619,6 +623,7 @@ function SettingsScreen() {
   return (
     <section className="content-screen">
       <ScreenHeader icon={Cog} title="Settings" />
+      <AuthPanel auth={auth} />
       <button className="setting-row" type="button" onClick={toggleSound}>
         <span>SFX</span>
         <strong>{soundEnabled ? "On" : "Off"}</strong>
@@ -773,6 +778,5 @@ function screenTitle(screen: AppScreen) {
   if (screen === "run-upgrades") return "Run upgrades";
   return screen.charAt(0).toUpperCase() + screen.slice(1);
 }
-
 
 

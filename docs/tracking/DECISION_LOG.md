@@ -364,3 +364,13 @@ Record meaningful product and technical decisions here so future development has
 - **Decision:** `pushTowerPadsOffPath()` in `mapPathUtils.ts` runs at layout resolve — each tower pad ≥**56px** from every route segment (iterative, all lanes). Traps remain on-path via `trapOnPath` + spike icon at pad.
 - **Validation:** `npm run audit:maps` (`scripts/audit-map-layouts.mjs`) fails towers &lt;48px from path or pads &lt;54px apart.
 - **Implemented:** `mapPathUtils.ts`, `mapLayouts.ts` resolve step; trap visual in `RunScene.createTrapSlots()`.
+
+## DEC-035: Production Deploy + Supabase Cloud Saves
+
+- **Date:** 2026-05-18
+- **Status:** Accepted
+- **Decision:** Deploy the Vite frontend to Vercel with Supabase Auth and `player_saves` cloud persistence enabled. Keep localStorage as the guest/offline cache, then merge local and cloud progress on sign-in before upserting back to Supabase.
+- **Infrastructure:** Vercel project `mergehold-td`; Supabase project `ASAP-MOB-FC` (`xbfkgvfnmtswygxovgcy`); optional Render API target `https://mergehold-td-api.onrender.com`.
+- **Mapping:** `bestWave` → `best_wave`; `softCurrency` → `soft_currency`; `permanentUpgrades` → `permanent_upgrades`; audio and loadout selections → `settings`.
+- **Production gate:** `DEBUG_UNLOCK_ALL_MAPS = false`.
+- **Reasoning:** Phone testing now needs a public deployment and account-backed progress without removing the existing guest play loop.

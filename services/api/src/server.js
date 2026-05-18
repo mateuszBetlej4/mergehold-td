@@ -18,7 +18,7 @@ const server = createServer((request, response) => {
       game: "Mergehold TD",
       minClientVersion: "0.1.0",
       features: {
-        cloudSaves: false,
+        cloudSaves: true,
         leaderboards: false,
         remoteBalancing: false,
       },
@@ -43,4 +43,3 @@ function sendJson(response, statusCode, payload) {
   });
   response.end(JSON.stringify(payload));
 }
-

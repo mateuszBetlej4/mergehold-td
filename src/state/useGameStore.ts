@@ -78,7 +78,7 @@ export const permanentUpgradeDefinitions: PermanentUpgrade[] = [
   },
 ];
 
-type PlayerProgress = {
+export type PlayerProgress = {
   softCurrency: number;
   bestWave: number;
   selectedHeroId: string;
@@ -107,6 +107,7 @@ type GameStore = {
   selectHero: (id: string, unlockWave: number) => boolean;
   selectMap: (id: string, unlockWave: number) => boolean;
   resetProgress: () => void;
+  replaceProgressFromCloud: (progress: PlayerProgress) => void;
   toggleSound: () => void;
   toggleMusic: () => void;
 };
@@ -173,6 +174,15 @@ function loadProgress() {
 function saveProgress(progress: PlayerProgress) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(saveKey, JSON.stringify(progress));
+}
+
+export function getDefaultProgress() {
+  return {
+    ...defaultProgress,
+    permanentUpgrades: {
+      ...defaultProgress.permanentUpgrades,
+    },
+  };
 }
 
 const initialProgress = loadProgress();
@@ -340,6 +350,24 @@ export const useGameStore = create<GameStore>((set) => ({
       progress: nextProgress,
       lastRun: defaultLastRun,
       runEndSummary: null,
+      soundEnabled: nextProgress.soundEnabled,
+      musicEnabled: nextProgress.musicEnabled,
+    };
+  }),
+  replaceProgressFromCloud: (progress) => set(() => {
+    const nextProgress = {
+      ...defaultProgress,
+      ...progress,
+      permanentUpgrades: {
+        ...defaultProgress.permanentUpgrades,
+        ...progress.permanentUpgrades,
+      },
+      soundEnabled: typeof progress.soundEnabled === "boolean" ? progress.soundEnabled : defaultProgress.soundEnabled,
+      musicEnabled: typeof progress.musicEnabled === "boolean" ? progress.musicEnabled : defaultProgress.musicEnabled,
+    };
+    saveProgress(nextProgress);
+    return {
+      progress: nextProgress,
       soundEnabled: nextProgress.soundEnabled,
       musicEnabled: nextProgress.musicEnabled,
     };

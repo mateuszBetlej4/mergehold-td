@@ -1,5 +1,13 @@
 # Deployment Plan
 
+## Current Production Setup
+
+- **Vercel project:** `mergehold-td`
+- **Supabase project:** `ASAP-MOB-FC` (`xbfkgvfnmtswygxovgcy`)
+- **Supabase URL:** `https://xbfkgvfnmtswygxovgcy.supabase.co`
+- **Render API target:** `https://mergehold-td-api.onrender.com`
+- **Status:** Frontend deploy in progress from `main`; Supabase schema applied; Render requires API/dashboard access if not already connected.
+
 ## Initial Deployment
 
 Use Vercel for the frontend.
@@ -14,16 +22,17 @@ Expected settings:
 
 ## Environment Variables
 
-No environment variables are required for the first static prototype.
-
-Future Supabase variables:
+Required Vercel variables:
 
 ```text
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
+VITE_SUPABASE_URL=https://xbfkgvfnmtswygxovgcy.supabase.co
+VITE_SUPABASE_ANON_KEY=<Supabase publishable key>
+VITE_API_BASE_URL=https://mergehold-td-api.onrender.com
 ```
 
 Only expose public anon keys through `VITE_` variables. Service role keys must never be shipped to the browser.
+
+These are set in Vercel for Production, Preview, and Development.
 
 ## Release Flow
 
@@ -53,9 +62,13 @@ Use Vercel deployment history to promote the previous working production deploym
 
 ## Render Plan
 
-Do not deploy anything to Render for the first version. Add Render only when the product needs a service that should run outside the static frontend and Supabase.
-
-An optional starter API is included under `services/api` with a Render Blueprint in `render.yaml`. It currently exposes:
+The optional starter API is included under `services/api` with a Render Blueprint in `render.yaml`. It currently exposes:
 
 - `GET /health`
-- `GET /api/config`
+- `GET /api/config` with `features.cloudSaves = true`
+
+Blueprint deeplink:
+
+```text
+https://dashboard.render.com/blueprint/new?repo=https://github.com/mateuszBetlej4/mergehold-td
+```
