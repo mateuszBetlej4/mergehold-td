@@ -8,7 +8,7 @@
 - **Supabase project:** `ASAP-MOB-FC` (`xbfkgvfnmtswygxovgcy`)
 - **Supabase URL:** `https://xbfkgvfnmtswygxovgcy.supabase.co`
 - **Render API target:** `https://mergehold-td-api.onrender.com`
-- **Status:** Frontend deployed from `main`; Supabase schema applied; Render requires API/dashboard access if not already connected.
+- **Status:** Frontend deployed from `main`; Supabase schema applied; Render is intentionally deferred and is not required for phone testing.
 
 ## Initial Deployment
 
@@ -64,6 +64,8 @@ Use Vercel deployment history to promote the previous working production deploym
 
 ## Render Plan
 
+**Current decision:** Render is flagged as deferred optional infrastructure. Do not treat it as a broken production dependency.
+
 The optional starter API is included under `services/api` with a Render Blueprint in `render.yaml`. It currently exposes:
 
 - `GET /health`
@@ -76,3 +78,12 @@ https://dashboard.render.com/blueprint/new?repo=https://github.com/mateuszBetlej
 ```
 
 Current blocker: the local machine has no `render` CLI, `RENDER_API_KEY` is not set, and Render MCP deployment tools were not exposed in the Codex session. The target `/health` URL currently returns 404, so the Render API service still needs the Blueprint applied or a Render API key provided.
+
+## Render Deferred Checklist
+
+- [x] Frontend is testable on phone without Render.
+- [x] Supabase handles auth and cloud saves without Render.
+- [x] Vercel has `VITE_API_BASE_URL` reserved for the future Render URL.
+- [ ] Deploy Render Blueprint when an API service is actually needed.
+- [ ] Provide `RENDER_API_KEY` or apply the Blueprint in the Render Dashboard.
+- [ ] Verify `https://mergehold-td-api.onrender.com/health` returns 200 after deployment.

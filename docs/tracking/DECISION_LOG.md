@@ -375,3 +375,13 @@ Record meaningful product and technical decisions here so future development has
 - **Mapping:** `bestWave` → `best_wave`; `softCurrency` → `soft_currency`; `permanentUpgrades` → `permanent_upgrades`; audio and loadout selections → `settings`.
 - **Production gate:** `DEBUG_UNLOCK_ALL_MAPS = false`.
 - **Reasoning:** Phone testing now needs a public deployment and account-backed progress without removing the existing guest play loop.
+
+## DEC-036: Defer Render API Until Needed
+
+- **Date:** 2026-05-19
+- **Status:** Accepted
+- **Decision:** Treat Render as optional deferred infrastructure, not a production blocker for the current phone-testing build.
+- **Current state:** The frontend runs on Vercel and account/cloud-save state uses Supabase directly from the browser under RLS. The optional Render service in `services/api` is still available through `render.yaml`, but `https://mergehold-td-api.onrender.com/health` is not expected to work until the Blueprint is applied.
+- **Trigger to revisit:** Deploy Render when the game needs server-owned logic such as anti-cheat validation, trusted leaderboard submission, scheduled jobs, webhooks, or custom API aggregation.
+- **Requirement:** To let Codex deploy it autonomously later, provide `RENDER_API_KEY` or expose Render deployment MCP tools in the session.
+- **Reasoning:** Avoids blocking mobile testing on a service that the current deployed app does not need.
