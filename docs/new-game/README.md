@@ -31,7 +31,7 @@ Recommended working title for documentation: **Tiny Kingdom Works**.
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
   Phased build plan from prototype to deployable product.
 
-- [TRACKING.md](./TRACKING.md)
+- [tracking/TRACKING.md](./tracking/TRACKING.md)
   Documentation-native bug tracker, task tracker, decision log pattern, QA checklist, and acceptance criteria.
 
 ## Product Thesis
