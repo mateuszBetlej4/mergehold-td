@@ -2,7 +2,15 @@
 
 ## Recommendation
 
-Use a web-first stack with a clear path to native mobile.
+Use a Windows-friendly, web-first stack with a clear path to native iPhone and Android releases.
+
+The development assumption is:
+
+- The game is built on **Windows**.
+- The first prototype runs as a **mobile web app** for fast iteration.
+- The production web build deploys to **Vercel**.
+- The native app version is created later with **Capacitor**, reusing the same Vite/Phaser/React codebase as much as possible.
+- iOS release still requires Apple tooling for final signing/App Store submission. A Windows developer can build the game, but final iPhone release planning must account for access to macOS/Xcode, a Mac build service, or CI that can produce iOS builds.
 
 | Layer | Choice | Reason |
 |---|---|---|
@@ -14,7 +22,7 @@ Use a web-first stack with a clear path to native mobile.
 | Persistence local | localStorage/IndexedDB wrapper | Fast offline MVP saves |
 | Cloud backend | Supabase | Auth, Postgres saves, remote config, leaderboards later |
 | Hosting | Vercel | Static frontend deploy from `dist` |
-| Native wrapper later | Capacitor | Wrap the web app for iOS/Android when gameplay is proven |
+| Native wrapper later | Capacitor | Wrap the web app for iPhone/Android when gameplay is proven |
 | Asset pipeline | Curated runtime assets + manifest files | Avoid committing raw asset packs; keep licensing clean |
 | Testing | Vitest for pure systems, Playwright/browser QA for mobile | Keep logic testable outside Phaser where possible |
 
@@ -129,6 +137,43 @@ No Render service is needed for MVP unless we add:
 
 Prefer Supabase Edge Functions before adding a separate Render API.
 
+## Windows Development Path
+
+Recommended Windows workflow:
+
+1. Build and test locally with Vite:
+
+```text
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+2. Test phone browser over LAN when needed:
+
+```text
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+
+3. Validate static output:
+
+```text
+npm run build
+npm run preview
+```
+
+4. Deploy web build to Vercel.
+5. Add Capacitor only after the gameplay loop is stable.
+
+Windows is fully suitable for:
+
+- Game implementation.
+- Asset slicing and manifest work.
+- Phaser/React development.
+- Android-oriented Capacitor development.
+- Vercel/Supabase integration.
+- Browser/mobile-web QA.
+
+Windows is not enough by itself for final direct iOS App Store release unless the project uses a Mac, remote Mac, or CI service for iOS signing/building.
+
 ## Native Mobile Path
 
 Build as a mobile web game first.
@@ -138,10 +183,10 @@ When the game is fun:
 1. Add PWA metadata.
 2. Add Capacitor.
 3. Wrap the Vite build.
-4. Test iOS/Android input latency and canvas performance.
+4. Test iPhone/Android input latency and canvas performance.
 5. Add native plugins only when needed.
 
-Capacitor is a web-native runtime, so the codebase can stay close to web standards while gaining app-store packaging.
+Capacitor is a web-native runtime, so the codebase can stay close to web standards while gaining app-store packaging. Android builds can be handled comfortably from Windows. iOS packaging requires Apple signing and Xcode access at release time.
 
 ## Performance Principles
 

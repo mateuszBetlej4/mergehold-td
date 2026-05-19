@@ -6,10 +6,13 @@ Goal: prepare a clean product foundation.
 
 Tasks:
 
-- [ ] Choose final name.
+- [x] Choose final working name: **Satisfy Kingdom**.
 - [ ] Decide new repo vs branch.
 - [ ] Create fresh app shell or isolated `/src/builder-game`.
 - [ ] Keep existing TD safe until the new direction is proven.
+- [ ] Document Windows local setup commands.
+- [ ] Document phone-over-LAN test setup from Windows.
+- [ ] Document future iPhone release requirement: macOS/Xcode, remote Mac, or CI signing path.
 - [ ] Copy only curated Tiny Swords runtime assets needed for the builder MVP.
 - [ ] Add asset credits.
 - [ ] Define MVP map dimensions and camera behavior.
@@ -197,18 +200,21 @@ Goal: get it on phone.
 
 Tasks:
 
-- [ ] Vercel deploy.
-- [ ] Phone QA.
+- [ ] Vercel web deploy.
+- [ ] Phone browser QA on iPhone Safari and Android Chrome.
 - [ ] Supabase production env.
 - [ ] Optional PWA manifest.
-- [ ] Later Capacitor wrapper.
+- [ ] Android Capacitor smoke build.
+- [ ] iPhone Capacitor build plan using macOS/Xcode, remote Mac, or CI.
+- [ ] Later App Store / Google Play release checklist.
 
 Acceptance:
 
-- Phone URL works.
+- Phone URL works from Vercel.
 - Save/load works.
 - No console errors.
 - Performance holds on mobile.
+- Native release path is documented before store work begins.
 
 ## Suggested First Sprint
 

@@ -4,15 +4,18 @@ This folder defines a new game direction using the Tiny Swords asset pack as the
 
 The proposed game is not a tower defense reskin. It is a mobile-first idle arcade builder where the player runs around a small kingdom, collects resources, carries visible stacks, donates resources into build pads, unlocks production chains, recruits helpers, expands the base, and eventually defends or raids with the army they have built.
 
-Working title options:
+Final working title:
 
-- **Tiny Kingdom Works**
-- **Carryhold Kingdom**
-- **Stackshire**
-- **Mergehold Kingdoms**
-- **Tiny Realm Runner**
+- **Satisfy Kingdom**
 
-Recommended working title for documentation: **Tiny Kingdom Works**.
+Development and release target:
+
+- Primary development machine: **Windows**.
+- First playable target: **mobile web** in browser for fast testing.
+- First deployment target: **Vercel** static web app.
+- Release ambition: **iPhone and Android**.
+- Native app route: **Capacitor wrapper after the web game loop is proven**.
+- Backend/cloud route: **Supabase** for auth, saves, remote config, and later leaderboards.
 
 ## Folder Map
 
@@ -57,6 +60,6 @@ Build a new branch or new repo when implementation starts. Keep this documentati
 - `Zustand` for client state coordination.
 - `Supabase` for auth, cloud saves, event snapshots, remote config, and later leaderboards.
 - `Vercel` for frontend hosting.
-- `Capacitor` later if native iOS/Android wrappers are needed.
+- `Capacitor` later for iPhone and Android wrappers.
 
 The MVP should prove fun before adding backend complexity.

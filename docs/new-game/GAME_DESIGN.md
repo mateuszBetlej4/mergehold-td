@@ -1,6 +1,6 @@
 # Game Design
 
-Working title: **Tiny Kingdom Works**
+Working title: **Satisfy Kingdom**
 
 ## One-Sentence Pitch
 

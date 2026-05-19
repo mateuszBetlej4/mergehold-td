@@ -32,6 +32,8 @@ Add decisions here or split into `DECISION_LOG.md` later.
 | BLD-003 | 2026-05-19 | Keep high-frequency simulation inside Phaser, not React | Better performance and cleaner game loop | DONE |
 | BLD-004 | 2026-05-19 | Organize content by feature folder | Makes buildings/resources/units easier to expand | DONE |
 | BLD-005 | 2026-05-19 | Use local saves before cloud saves | MVP should prove fun before backend complexity | DONE |
+| BLD-006 | 2026-05-19 | Build on Windows, prototype on mobile web, release later through Capacitor | Windows is ideal for daily development; iPhone release requires Apple signing/Xcode access later | DONE |
+| BLD-007 | 2026-05-19 | Use Satisfy Kingdom as the working product name | Matches satisfying resource loops and kingdom theme | DONE |
 
 ## Task Backlog
 
@@ -49,6 +51,8 @@ Add decisions here or split into `DECISION_LOG.md` later.
 | TASK-010 | P1 | TODO | Saves | Add local save | Refresh preserves progress |
 | TASK-011 | P2 | TODO | Combat | Add first red raid | Raider event creates light pressure |
 | TASK-012 | P2 | TODO | Cloud | Add Supabase save sync | Signed-in player syncs save |
+| TASK-013 | P1 | TODO | Release | Add Windows setup and phone LAN QA guide | Developer can test on phone from Windows |
+| TASK-014 | P2 | TODO | Release | Add Capacitor iPhone/Android release checklist | Native release blockers are known before store work |
 
 ## Bug Tracker
 
