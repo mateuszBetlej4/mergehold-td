@@ -15,6 +15,7 @@ Tasks:
 - [ ] Document future iPhone release requirement: macOS/Xcode, remote Mac, or CI signing path.
 - [ ] Copy only curated Tiny Swords runtime assets needed for the builder MVP.
 - [ ] Add asset credits.
+- [ ] Create audio credits file.
 - [ ] Define MVP map dimensions and camera behavior.
 
 Exit criteria:
@@ -181,8 +182,8 @@ Goal: make a product-quality demo.
 Tasks:
 
 - [ ] Add UI skin.
-- [ ] Add sound effects.
-- [ ] Add music.
+- [ ] Add first satisfying sound effects: chop, pickup, deposit, build complete, UI tap.
+- [ ] Add music and ambience after the core loop sounds good.
 - [ ] Add haptics later for native.
 - [ ] Add tutorial sequence.
 - [ ] Add balanced first 10 minutes.

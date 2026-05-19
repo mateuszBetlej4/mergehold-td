@@ -147,7 +147,34 @@ Use CSS border-image/background layering, Phaser NineSlice, or manual sliced spr
 Verification:
 Future Satisfy Kingdom UI QA should include mobile screenshots of all panel/button/bar states.
 
+---
+
+ID: SK-BUG-004
+Title: Audio sources need per-file license/source tracking before implementation
+Status: New
+Severity: S3
+Area: Assets
+Found in: Audio planning 2026-05-19
+Owner: Unassigned
+Date opened: 2026-05-19
+Related issue/doc: [Audio asset plan](../assets/AUDIO_ASSET_PLAN.md)
+
+Steps to reproduce:
+1. Download sound effects from Pixabay or any similar site.
+2. Add them to runtime without recording source URL, author, license, and download date.
+
+Expected:
+Every runtime audio asset has a matching credit/license entry before it is committed.
+
+Actual:
+No audio assets have been selected yet; risk documented before sourcing starts.
+
+Notes:
+Pixabay's license summary allows free use without required attribution and adaptation, but prohibits standalone redistribution and requires us to check whether extra rights apply.
+
+Verification:
+Create `AUDIO_CREDITS.md` and require one entry per selected sound.
+
 ## Fixed Bugs
 
 No fixed Satisfy Kingdom bugs yet.
-

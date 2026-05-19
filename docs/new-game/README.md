@@ -37,6 +37,9 @@ Development and release target:
 - [assets/TINY_SWORDS_ASSET_AUDIT.md](./assets/TINY_SWORDS_ASSET_AUDIT.md)
   Tiny Swords pack inventory, license notes, curated runtime subset, and art-direction mapping.
 
+- [assets/AUDIO_ASSET_PLAN.md](./assets/AUDIO_ASSET_PLAN.md)
+  Sound sourcing plan, first SFX shopping list, naming rules, licensing notes, and audio QA checklist.
+
 - [tracking/TRACKING.md](./tracking/TRACKING.md)
   Documentation-native bug tracker, task tracker, decision log pattern, QA checklist, and acceptance criteria.
 

@@ -55,6 +55,8 @@ Add decisions here or split into `DECISION_LOG.md` later.
 | TASK-012 | P2 | TODO | Cloud | Add Supabase save sync | Signed-in player syncs save |
 | TASK-013 | P1 | TODO | Release | Add Windows setup and phone LAN QA guide | Developer can test on phone from Windows |
 | TASK-014 | P2 | TODO | Release | Add Capacitor iPhone/Android release checklist | Native release blockers are known before store work |
+| TASK-015 | P1 | TODO | Audio | Create audio credits file and first SFX candidate list | Every chosen sound has source/license metadata before implementation |
+| TASK-016 | P1 | TODO | Audio | Add core loop SFX plan to implementation | Chop, pickup, deposit, build complete, and UI tap sounds are ready for MVP |
 
 ## Bug Tracker
 
