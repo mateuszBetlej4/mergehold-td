@@ -31,6 +31,9 @@ Recommended working title for documentation: **Tiny Kingdom Works**.
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
   Phased build plan from prototype to deployable product.
 
+- [assets/TINY_SWORDS_ASSET_AUDIT.md](./assets/TINY_SWORDS_ASSET_AUDIT.md)
+  Tiny Swords pack inventory, license notes, curated runtime subset, and art-direction mapping.
+
 - [tracking/TRACKING.md](./tracking/TRACKING.md)
   Documentation-native bug tracker, task tracker, decision log pattern, QA checklist, and acceptance criteria.
 
