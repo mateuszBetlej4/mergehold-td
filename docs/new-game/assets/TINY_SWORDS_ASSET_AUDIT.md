@@ -1,7 +1,7 @@
 # Tiny Swords Visual Redesign Audit
 
 Branch: `visual/tiny-swords-redesign`  
-Source folder inspected locally: `public/assets/source/Tiny Swords (Free Pack)/`  
+Source folder inspected locally: `docs/new-game/assets/Tiny Swords (Free Pack)/`
 Source page: https://pixelfrog-assets.itch.io/tiny-swords
 
 ## Summary
@@ -26,7 +26,7 @@ Practical rule for this repo:
 - Do not commit the whole raw source pack to a public repository.
 - Do not commit `.aseprite` source files unless the license/export workflow is clarified.
 - Commit only curated runtime files that the game actually uses.
-- Keep `public/assets/source/Tiny Swords (Free Pack)/` as local-only source material unless the repo visibility/licensing decision changes.
+- Keep `docs/new-game/assets/Tiny Swords (Free Pack)/` as local-only source material unless the repo visibility/licensing decision changes.
 - Add Pixel Frog attribution in `public/assets/licenses/ASSET_CREDITS.md` when runtime Tiny Swords files are introduced.
 
 ## Inventory
@@ -300,7 +300,7 @@ That will make the game look like a real product quickly without changing the co
 ## Implementation Status
 
 - [x] Branch created away from `main`: `visual/tiny-swords-redesign`.
-- [x] Raw pack audited and kept local-only under `public/assets/source/Tiny Swords (Free Pack)/`.
+- [x] Raw pack audited and kept local-only under `docs/new-game/assets/Tiny Swords (Free Pack)/`.
 - [x] Curated runtime subset copied to `public/assets/optimized/tiny-swords/`.
 - [x] Runtime manifest added in `src/data/tinySwordsAssets.ts`.
 - [x] Pixel Frog credit added to `public/assets/licenses/ASSET_CREDITS.md`.

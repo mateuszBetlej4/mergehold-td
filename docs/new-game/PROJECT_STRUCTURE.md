@@ -471,7 +471,7 @@ public/assets/optimized/tiny-swords-builder/
 Source remains local-only:
 
 ```text
-public/assets/source/Tiny Swords (Free Pack)/
+docs/new-game/assets/Tiny Swords (Free Pack)/
 ```
 
 Manifests:
