@@ -191,7 +191,8 @@ const troopVisuals: Record<TroopDefinition["role"], { key: string; animation: st
 };
 
 const groundTileSize = 64;
-const pathDotSpacing = 26;
+const pathStampSpacing = 34;
+const tinySwordsGrassFrames = [0, 1, 2, 9, 10, 11, 18, 19, 20];
 
 /** Added to Phaser aim angle so texture "forward" matches target (0° = east in Phaser). */
 const spriteFacingOffset: Record<string, number> = {
@@ -348,7 +349,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private loadTinySwordsAssets() {
-    const { buildings, terrain, projectiles, units, fx } = tinySwordsAssets;
+    const { buildings, terrain, projectiles, units, fx, ui } = tinySwordsAssets;
 
     this.load.image("ts-building-fort", buildings.fort);
     this.load.image("ts-building-archery", buildings.archerTower);
@@ -366,8 +367,11 @@ export class RunScene extends Phaser.Scene {
     this.load.image("ts-terrain-rock-1", terrain.rock1);
     this.load.image("ts-terrain-rock-2", terrain.rock2);
     this.load.image("ts-terrain-gold", terrain.goldResource);
-    this.load.image("ts-terrain-tilemap-grass", terrain.tilemapGrass);
+    this.load.spritesheet("ts-terrain-tilemap-grass", terrain.tilemapGrass, { frameWidth: 64, frameHeight: 64 });
     this.load.image("ts-arrow", projectiles.arrow);
+    this.load.image("ts-ui-paper", ui.paper);
+    this.load.image("ts-ui-blue-button", ui.blueButton);
+    this.load.image("ts-ui-red-button", ui.redButton);
 
     this.load.spritesheet("ts-red-pawn-run", units.redPawnRun, { frameWidth: 192, frameHeight: 192 });
     this.load.spritesheet("ts-red-warrior-run", units.redWarriorRun, { frameWidth: 192, frameHeight: 192 });
@@ -460,11 +464,11 @@ export class RunScene extends Phaser.Scene {
       for (let col = 0; col < cols; col += 1) {
         const x = col * groundTileSize + groundTileSize / 2;
         const y = row * groundTileSize + groundTileSize / 2;
-        this.add
-          .image(x, y, "kenney-grass")
+        const frame = tinySwordsGrassFrames[(row * 3 + col * 5 + row * col) % tinySwordsGrassFrames.length];
+        this.add.sprite(x, y, "ts-terrain-tilemap-grass", frame)
           .setDisplaySize(groundTileSize + 1, groundTileSize + 1)
           .setTint(this.palette.ground)
-          .setAlpha(0.9)
+          .setAlpha(0.82)
           .setDepth(0);
       }
     }
@@ -474,27 +478,44 @@ export class RunScene extends Phaser.Scene {
     const routeCount = this.layout.routes.length;
     this.layout.routes.forEach((route, routeIndex) => {
       const waypoints = route.waypoints.map((p) => new Phaser.Math.Vector2(p.x, p.y));
-      const alpha = routeCount > 1 ? 0.82 - routeIndex * 0.14 : 0.9;
-      const scale = 0.42 - routeIndex * 0.03;
+      const alpha = routeCount > 1 ? 0.78 - routeIndex * 0.1 : 0.86;
+      const roadWidth = Math.max(18, 30 - routeIndex * 3);
+      const edgeWidth = roadWidth + 8;
+      const edge = this.add.graphics().setDepth(1);
+      const road = this.add.graphics().setDepth(2);
+
+      edge.lineStyle(edgeWidth, 0x866641, Math.max(0.34, alpha * 0.62));
+      road.lineStyle(roadWidth, this.palette.path, alpha);
+      edge.beginPath();
+      road.beginPath();
+      edge.moveTo(waypoints[0].x, waypoints[0].y);
+      road.moveTo(waypoints[0].x, waypoints[0].y);
+
+      waypoints.slice(1).forEach((point) => {
+        edge.lineTo(point.x, point.y);
+        road.lineTo(point.x, point.y);
+      });
+
+      edge.strokePath();
+      road.strokePath();
 
       for (let index = 0; index < waypoints.length - 1; index += 1) {
         const start = waypoints[index];
         const end = waypoints[index + 1];
         const segmentLength = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
-        const steps = Math.max(1, Math.floor(segmentLength / pathDotSpacing));
+        const steps = Math.max(1, Math.floor(segmentLength / pathStampSpacing));
 
         for (let step = 0; step <= steps; step += 1) {
           const t = step / steps;
           const x = Phaser.Math.Linear(start.x, end.x, t);
           const y = Phaser.Math.Linear(start.y, end.y, t);
-          this.add
-            .image(x, y, "kenney-path-dot")
-            .setScale(Math.max(0.34, scale))
-            .setTint(this.palette.path)
-            .setAlpha(Math.max(0.45, alpha))
-            .setDepth(2);
+          this.add.circle(x, y, roadWidth * 0.28, 0xf1d5a7, Math.max(0.14, alpha * 0.22)).setDepth(2);
         }
       }
+
+      waypoints.forEach((point) => {
+        this.add.circle(point.x, point.y, roadWidth * 0.48, this.palette.path, alpha * 0.78).setDepth(2);
+      });
     });
   }
 
@@ -1901,15 +1922,16 @@ export class RunScene extends Phaser.Scene {
     this.syncTimeScale();
     const offeredUpgrades = this.pickUpgrades();
     const overlay = this.add.container(0, 0).setDepth(80);
-    overlay.add(this.add.rectangle(195, 347, 390, 694, 0x17202b, 0.64));
+    overlay.add(this.add.rectangle(195, 347, 390, 694, 0x13231e, 0.58));
+    overlay.add(this.add.rectangle(195, 156, 300, 104, 0xfff2cf, 0.96).setStrokeStyle(3, 0x7a4e21, 0.72));
     overlay.add(this.add.text(195, 150, "Choose an upgrade", {
-      color: "#ffffff",
+      color: "#17202b",
       fontFamily: "Arial",
       fontSize: "24px",
       fontStyle: "bold",
     }).setOrigin(0.5));
     overlay.add(this.add.text(195, 181, `Wave ${this.wave} cleared`, {
-      color: "#f2c14e",
+      color: "#7a4e21",
       fontFamily: "Arial",
       fontSize: "15px",
       fontStyle: "bold",
@@ -1918,7 +1940,7 @@ export class RunScene extends Phaser.Scene {
     let bonusY = 206;
     if (waveGemDrip > 0) {
       overlay.add(this.add.text(195, bonusY, `+${waveGemDrip} gems banked`, {
-        color: "#f2c14e",
+        color: "#216869",
         fontFamily: "Arial",
         fontSize: "14px",
         fontStyle: "bold",
@@ -1927,7 +1949,7 @@ export class RunScene extends Phaser.Scene {
     }
     if (millIncome > 0) {
       overlay.add(this.add.text(195, bonusY, `Coin mills +${millIncome}`, {
-        color: "#fff7da",
+        color: "#216869",
         fontFamily: "Arial",
         fontSize: "14px",
         fontStyle: "bold",
@@ -1937,7 +1959,7 @@ export class RunScene extends Phaser.Scene {
 
     if (shrineHeal > 0) {
       overlay.add(this.add.text(195, bonusY, `Shrines repaired +${shrineHeal} HP`, {
-        color: "#b8f5cc",
+        color: "#216869",
         fontFamily: "Arial",
         fontSize: "14px",
         fontStyle: "bold",
@@ -1957,15 +1979,16 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createUpgradeCard(upgrade: UpgradeDefinition, x: number, y: number) {
-    const rarityColor = {
-      common: 0xffffff,
-      rare: 0x8fd0ff,
-      epic: 0xcaa8ff,
+    const rarityAccent = {
+      common: 0x4f8f6b,
+      rare: 0x3f7fb0,
+      epic: 0x8a62b2,
     }[upgrade.rarity];
     const container = this.add.container(x, y);
-    const card = this.add.rectangle(0, 0, 318, 82, rarityColor, 1)
-      .setStrokeStyle(4, 0x216869)
+    const card = this.add.rectangle(0, 0, 318, 82, 0xfff2cf, 0.98)
+      .setStrokeStyle(3, rarityAccent, 0.85)
       .setInteractive({ useHandCursor: true });
+    const ribbon = this.add.rectangle(120, -28, 62, 18, rarityAccent, 0.94);
     const title = this.add.text(-136, -26, upgrade.name, {
       color: "#17202b",
       fontFamily: "Arial",
@@ -1979,14 +2002,14 @@ export class RunScene extends Phaser.Scene {
       wordWrap: { width: 250 },
     });
     const rarity = this.add.text(126, -28, upgrade.rarity.toUpperCase(), {
-      color: "#216869",
+      color: "#ffffff",
       fontFamily: "Arial",
       fontSize: "10px",
       fontStyle: "bold",
-    }).setOrigin(1, 0);
+    }).setOrigin(0.5, 0.5);
 
     card.on("pointerdown", () => this.chooseUpgrade(upgrade));
-    container.add([card, title, description, rarity]);
+    container.add([card, ribbon, title, description, rarity]);
     return container;
   }
 

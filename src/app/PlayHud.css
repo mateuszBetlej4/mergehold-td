@@ -24,7 +24,11 @@
   gap: 8px;
   align-items: start;
   padding: 10px 10px 0;
-  background: linear-gradient(180deg, rgba(15, 22, 32, 0.94) 0%, rgba(15, 22, 32, 0.55) 72%, transparent 100%);
+  background:
+    linear-gradient(180deg, rgba(25, 48, 39, 0.86) 0%, rgba(25, 48, 39, 0.42) 70%, transparent 100%),
+    url("/assets/optimized/tiny-swords/ui/regular-paper.png");
+  background-size: auto, 96px 96px;
+  background-blend-mode: multiply;
 }
 
 .play-hud__controls {
@@ -35,13 +39,17 @@
 .play-hud__icon-btn {
   width: 36px;
   height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f7f2e8;
+  border: 2px solid rgba(122, 78, 33, 0.52);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 246, 217, 0.92), rgba(218, 171, 92, 0.92)),
+    url("/assets/optimized/tiny-swords/ui/big-blue-button.png");
+  background-size: auto, 100% 100%;
+  color: #17202b;
   font-size: 0.72rem;
   font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 3px 0 rgba(73, 45, 20, 0.58), 0 6px 12px rgba(15, 22, 32, 0.18);
 }
 
 .play-hud__icon-btn:disabled {
@@ -51,7 +59,8 @@
 
 .play-hud__icon-btn.is-active {
   background: #216869;
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #f7f2e8;
 }
 
 .play-hud__stats {
@@ -65,13 +74,17 @@
   gap: 2px;
   justify-items: center;
   padding: 6px 4px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 231, 0.94), rgba(224, 194, 135, 0.94)),
+    url("/assets/optimized/tiny-swords/ui/regular-paper.png");
+  background-size: auto, 88px 88px;
+  border: 2px solid rgba(122, 78, 33, 0.42);
+  box-shadow: 0 4px 0 rgba(73, 45, 20, 0.35), 0 8px 14px rgba(15, 22, 32, 0.16);
 }
 
 .play-hud__stat span {
-  color: rgba(247, 242, 232, 0.72);
+  color: rgba(23, 32, 43, 0.62);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -79,7 +92,7 @@
 }
 
 .play-hud__stat strong {
-  color: #ffffff;
+  color: #17202b;
   font-size: 0.82rem;
   font-weight: 900;
   line-height: 1.1;
@@ -119,10 +132,14 @@
 
 .play-hud__dock {
   padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-  border-radius: 18px 18px 0 0;
-  background: linear-gradient(0deg, rgba(15, 22, 32, 0.98) 0%, rgba(15, 22, 32, 0.9) 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 -10px 28px rgba(15, 22, 32, 0.35);
+  border-radius: 16px 16px 0 0;
+  background:
+    linear-gradient(0deg, rgba(33, 26, 21, 0.96) 0%, rgba(51, 42, 31, 0.92) 100%),
+    url("/assets/optimized/tiny-swords/ui/regular-paper.png");
+  background-size: auto, 128px 128px;
+  background-blend-mode: multiply;
+  border-top: 3px solid rgba(242, 193, 78, 0.56);
+  box-shadow: 0 -10px 28px rgba(15, 22, 32, 0.36);
 }
 
 .play-hud__start-wave {
@@ -151,14 +168,14 @@
   gap: 4px;
   margin-bottom: 10px;
   padding: 3px;
-  border-radius: 11px;
-  background: rgba(0, 0, 0, 0.28);
+  border-radius: 8px;
+  background: rgba(16, 20, 18, 0.5);
 }
 
 .play-hud__tab {
   height: 30px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: rgba(247, 242, 232, 0.65);
   font-size: 0.72rem;
@@ -167,8 +184,9 @@
 }
 
 .play-hud__tab.is-active {
-  background: #216869;
+  background: #2f7f73;
   color: #ffffff;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.22);
 }
 
 .play-hud__grid {
@@ -193,12 +211,16 @@
   align-content: center;
   gap: 4px;
   padding: 6px 4px 4px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #f7f2e8;
+  border: 2px solid rgba(122, 78, 33, 0.5);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 247, 219, 0.94), rgba(214, 176, 111, 0.92)),
+    url("/assets/optimized/tiny-swords/ui/regular-paper.png") !important;
+  background-size: auto, 86px 86px !important;
+  color: #17202b;
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 0 rgba(73, 45, 20, 0.42);
 }
 
 .play-hud__chip:active {
@@ -207,7 +229,7 @@
 
 .play-hud__chip.is-selected {
   border-color: #f2c14e;
-  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.28);
+  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.42), 0 4px 0 rgba(73, 45, 20, 0.42);
 }
 
 .play-hud__chip.is-locked {
@@ -225,7 +247,7 @@
 .play-hud__chip-label {
   font-size: 0.62rem;
   font-weight: 800;
-  opacity: 0.9;
+  opacity: 0.86;
 }
 
 .play-hud__chip-cost {
@@ -237,20 +259,24 @@
 .play-hud__chip-lock {
   font-size: 0.58rem;
   font-weight: 800;
-  color: rgba(247, 242, 232, 0.55);
+  color: rgba(23, 32, 43, 0.5);
 }
 
 .play-hud__ability {
   min-height: 58px;
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f7f2e8;
+  border: 2px solid rgba(122, 78, 33, 0.52);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 246, 217, 0.94), rgba(218, 171, 92, 0.92)),
+    url("/assets/optimized/tiny-swords/ui/big-blue-button.png");
+  background-size: auto, 100% 100%;
+  color: #17202b;
   font-size: 0.58rem;
   font-weight: 800;
   line-height: 1.2;
   padding: 4px;
   cursor: pointer;
+  box-shadow: 0 4px 0 rgba(73, 45, 20, 0.42);
 }
 
 .play-hud__ability:disabled {
@@ -260,7 +286,7 @@
 
 .play-hud__ability.is-ready {
   border-color: rgba(242, 193, 78, 0.65);
-  background: rgba(242, 193, 78, 0.16);
+  background: linear-gradient(180deg, #f7d465 0%, #d69a34 100%);
 }
 
 .play-hud--upgrade .play-hud__top {
@@ -280,7 +306,7 @@
   margin: 0;
   padding: 14px 8px 6px;
   text-align: center;
-  color: rgba(247, 242, 232, 0.72);
+  color: rgba(255, 247, 219, 0.82);
   font-size: 0.78rem;
   font-weight: 800;
 }

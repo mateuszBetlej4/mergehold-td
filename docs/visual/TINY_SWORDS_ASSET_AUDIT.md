@@ -307,6 +307,7 @@ That will make the game look like a real product quickly without changing the co
 - [x] Phaser run scene loads Tiny Swords buildings, units, projectiles, terrain props, and FX.
 - [x] Run scene now uses Blue kingdom buildings, animated Blue troops, animated Red/Black raiders, castle fort, shadows, decor, and combat FX.
 - [x] React HUD/catalog thumbnails point at the curated Tiny Swords runtime assets where relevant.
-- [ ] Full map tile pass using the 64px Tiny Swords tilesheet.
-- [ ] Full parchment/wood menu and HUD skin.
+- [x] First map tile pass using the 64px Tiny Swords tilesheet plus a painted route layer.
+- [x] First parchment/wood run HUD skin and readable upgrade-card treatment.
+- [ ] Full menu-wide parchment/wood skin.
 - [ ] Add before/after screenshots once QA is complete.
