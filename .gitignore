@@ -28,3 +28,6 @@ dist-ssr
 
 .vercel
 .env*.local
+
+# Local-only asset pack source. Commit curated runtime exports instead.
+public/assets/source/Tiny Swords (Free Pack)/
