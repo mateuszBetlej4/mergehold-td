@@ -40,6 +40,9 @@ Development and release target:
 - [tracking/TRACKING.md](./tracking/TRACKING.md)
   Documentation-native bug tracker, task tracker, decision log pattern, QA checklist, and acceptance criteria.
 
+- [tracking/BUG_TRACKER.md](./tracking/BUG_TRACKER.md)
+  Dedicated bug tracker for known defects, release risks, verification notes, and fixed bugs.
+
 ## Product Thesis
 
 Tiny Swords is strongest when it is allowed to be a small living kingdom:

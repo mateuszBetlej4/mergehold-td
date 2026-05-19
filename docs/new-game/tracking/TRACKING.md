@@ -1,6 +1,8 @@
 # Tracking System
 
-This file defines how the new game should track decisions, tasks, bugs, and QA inside documentation until a dedicated issue tracker is created.
+This file defines how the new game should track decisions, tasks, and QA inside documentation until a dedicated issue tracker is created.
+
+Dedicated bug tracker: [BUG_TRACKER.md](./BUG_TRACKER.md)
 
 ## Status Values
 
@@ -56,9 +58,7 @@ Add decisions here or split into `DECISION_LOG.md` later.
 
 ## Bug Tracker
 
-| ID | Priority | Status | Area | Bug | Repro | Expected |
-|---|---|---|---|---|---|---|
-| BUG-001 | P1 | TODO | Assets | Verify Tiny Swords license terms before public release | Review official itch page before launch | Runtime subset remains compliant |
+Use [BUG_TRACKER.md](./BUG_TRACKER.md) for all Satisfy Kingdom bugs, risks, defects, and verification notes.
 
 ## QA Checklist
 
