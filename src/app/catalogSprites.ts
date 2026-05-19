@@ -1,24 +1,31 @@
+import { tinySwordsAssets } from "../data/tinySwordsAssets";
+
 /** Mirrors RunScene tower/enemy keys — see docs/GRAPHICS.md */
 const towerAssetKeys: Record<string, string> = {
-  "archer-tower": "kenney-tower-archer",
-  "cannon-tower": "kenney-tower-cannon",
-  "magic-tower": "kenney-tower-magic",
+  "archer-tower": tinySwordsAssets.buildings.archerTower,
+  "cannon-tower": tinySwordsAssets.buildings.cannonTower,
+  "magic-tower": tinySwordsAssets.buildings.magicTower,
+  "coin-mill": tinySwordsAssets.buildings.coinMill,
+  barracks: tinySwordsAssets.buildings.barracks,
+  "stone-wall": tinySwordsAssets.buildings.stoneWall,
+  "healing-shrine": tinySwordsAssets.buildings.healingShrine,
+  "spike-trap": "/assets/optimized/sprites/spike-trap.svg",
 };
 
-const enemyAssetKeys: Record<string, string> = {
-  grunt: "kenney-enemy-grunt",
-  runner: "kenney-enemy-runner",
-  tank: "kenney-enemy-tank",
-  shield: "kenney-enemy-shield",
-  bat: "enemy-runner",
-  bomber: "enemy-grunt",
-  gatebreaker: "kenney-enemy-boss",
+const enemyAssetPaths: Record<string, string> = {
+  grunt: tinySwordsAssets.units.redPawnRun,
+  runner: tinySwordsAssets.units.redWarriorRun,
+  tank: tinySwordsAssets.units.redLancerRun,
+  shield: tinySwordsAssets.units.redLancerRun,
+  bat: tinySwordsAssets.units.redWarriorRun,
+  bomber: tinySwordsAssets.units.blackWarriorRun,
+  gatebreaker: tinySwordsAssets.units.blackWarriorRun,
 };
 
-const troopRoleTints: Record<string, number> = {
-  blocker: 0x546a7b,
-  ranged: 0x2f5d8c,
-  burst: 0xb85c38,
+const troopAssetPaths: Record<string, string> = {
+  blocker: tinySwordsAssets.units.blueWarriorRun,
+  ranged: tinySwordsAssets.units.blueArcherRun,
+  burst: tinySwordsAssets.units.blueMonkRun,
 };
 
 export type CatalogCategory = "building" | "enemy" | "troop" | "hero";
@@ -28,40 +35,26 @@ export type CatalogSprite = {
   tint?: number;
 };
 
-function assetExtension(key: string): "png" | "svg" {
-  return key.startsWith("kenney-") ? "png" : "svg";
-}
-
 export function getCatalogSprite(
   itemId: string,
   category: CatalogCategory,
   options?: { tint?: number; role?: string },
 ): CatalogSprite {
   if (category === "building") {
-    const towerKey = towerAssetKeys[itemId];
-    if (towerKey) {
-      return { src: `/assets/optimized/sprites/${towerKey}.png` };
-    }
-    return { src: `/assets/optimized/sprites/${itemId}.svg` };
+    return { src: towerAssetKeys[itemId] ?? `/assets/optimized/sprites/${itemId}.svg` };
   }
 
   if (category === "enemy") {
-    const key = enemyAssetKeys[itemId] ?? "kenney-enemy-grunt";
-    const ext = assetExtension(key);
-    const tint = ext === "svg" && options?.tint !== undefined ? options.tint : undefined;
-    return { src: `/assets/optimized/sprites/${key}.${ext}`, tint };
+    return { src: enemyAssetPaths[itemId] ?? tinySwordsAssets.units.redPawnRun };
   }
 
   if (category === "troop") {
     const role = options?.role ?? "blocker";
-    return {
-      src: "/assets/optimized/sprites/hero-guardian.svg",
-      tint: troopRoleTints[role] ?? troopRoleTints.blocker,
-    };
+    return { src: troopAssetPaths[role] ?? tinySwordsAssets.units.blueWarriorRun };
   }
 
   return {
-    src: "/assets/optimized/sprites/hero-guardian.svg",
-    tint: options?.tint,
+    src: tinySwordsAssets.units.blueWarriorRun,
+    tint: undefined,
   };
 }

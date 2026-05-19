@@ -166,7 +166,7 @@ export function PlayHud({
                 disabled={ui.isGameOver}
                 onClick={() => gameBridge.emit("selectTower", tower.index)}
               >
-                <img src={`/assets/optimized/sprites/${tower.sprite}.png`} alt="" />
+                <img src={getRunSpriteSrc(tower.sprite, "png")} alt="" />
                 <span className="play-hud__chip-label">{tower.icon}</span>
                 <span className="play-hud__chip-cost">${tower.cost}</span>
               </button>
@@ -191,7 +191,7 @@ export function PlayHud({
                 disabled={!struct.unlocked || ui.isGameOver}
                 onClick={() => gameBridge.emit("selectStruct", struct.mode)}
               >
-                <img src={`/assets/optimized/sprites/${struct.sprite}.svg`} alt="" />
+                <img src={getRunSpriteSrc(struct.sprite, "svg")} alt="" />
                 <span className="play-hud__chip-label">{struct.icon}</span>
                 {struct.unlocked ? (
                   <span className="play-hud__chip-cost">${struct.cost}</span>
@@ -205,6 +205,20 @@ export function PlayHud({
       </footer>
     </div>
   );
+}
+
+const tinySwordsSpritePaths: Record<string, string> = {
+  "ts-building-archery": "/assets/optimized/tiny-swords/buildings/blue-archery.png",
+  "ts-building-tower": "/assets/optimized/tiny-swords/buildings/blue-tower.png",
+  "ts-building-monastery": "/assets/optimized/tiny-swords/buildings/blue-monastery.png",
+  "ts-building-mill": "/assets/optimized/tiny-swords/buildings/blue-house1.png",
+  "ts-building-barracks": "/assets/optimized/tiny-swords/buildings/blue-barracks.png",
+  "ts-building-wall": "/assets/optimized/tiny-swords/buildings/blue-tower.png",
+  "ts-building-shrine": "/assets/optimized/tiny-swords/buildings/blue-monastery.png",
+};
+
+function getRunSpriteSrc(sprite: string, fallbackExtension: "png" | "svg") {
+  return tinySwordsSpritePaths[sprite] ?? `/assets/optimized/sprites/${sprite}.${fallbackExtension}`;
 }
 
 function DockTab({

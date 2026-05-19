@@ -6,6 +6,7 @@ import { getMapLayout, type MapDecor, type MapLayout } from "../../data/mapLayou
 import { scoreRoute, type PathRoute } from "../../data/mapPathUtils";
 import { getMapWaveProfile, getMapWaveSpawnGroups } from "../../data/mapWaves";
 import { mapDefinitions } from "../../data/maps";
+import { tinySwordsAssets } from "../../data/tinySwordsAssets";
 import { troopDefinitions, type TroopDefinition } from "../../data/troops";
 import { upgradeDefinitions, type UpgradeDefinition } from "../../data/upgrades";
 import { useGameStore } from "../../state/useGameStore";
@@ -20,7 +21,7 @@ import { AudioManager, preloadSounds } from "../audio/audioManager";
 type DamageSource = "archer" | "cannon" | "magic" | "trap" | "troop" | "hero" | "other";
 
 type Enemy = {
-  body: Phaser.GameObjects.Image;
+  body: Phaser.GameObjects.Sprite;
   hpBar: Phaser.GameObjects.Rectangle;
   pathIndex: number;
   routeId: string;
@@ -34,6 +35,7 @@ type Enemy = {
   damageToFort: number;
   tint: number;
   isBoss: boolean;
+  baseScale: number;
   facingOffset: number;
 };
 
@@ -43,6 +45,7 @@ type Tower = {
   badge: Phaser.GameObjects.Text;
   towerId: string;
   tier: number;
+  baseScale: number;
   damage: number;
   range: number;
   fireRateMs: number;
@@ -99,7 +102,7 @@ type HealingShrine = {
 };
 
 type FriendlyTroop = {
-  body: Phaser.GameObjects.Image;
+  body: Phaser.GameObjects.Sprite;
   hpBar: Phaser.GameObjects.Rectangle;
   hp: number;
   maxHp: number;
@@ -128,31 +131,63 @@ const healingShrineDefinition =
 const maxFriendlyTroops = 10;
 
 const towerAssetKeys: Record<string, string> = {
-  "archer-tower": "kenney-tower-archer",
-  "cannon-tower": "kenney-tower-cannon",
-  "magic-tower": "kenney-tower-magic",
+  "archer-tower": "ts-building-archery",
+  "cannon-tower": "ts-building-tower",
+  "magic-tower": "ts-building-monastery",
 };
 
 const enemyAssetKeys: Record<string, string> = {
-  grunt: "kenney-enemy-grunt",
-  runner: "kenney-enemy-runner",
-  tank: "kenney-enemy-tank",
-  shield: "kenney-enemy-shield",
-  bat: "enemy-runner",
-  bomber: "enemy-grunt",
-  gatebreaker: "kenney-enemy-boss",
+  grunt: "ts-red-pawn-run",
+  runner: "ts-red-warrior-run",
+  tank: "ts-red-lancer-run",
+  shield: "ts-red-lancer-run",
+  bat: "ts-red-warrior-run",
+  bomber: "ts-black-warrior-run",
+  gatebreaker: "ts-black-warrior-run",
 };
 
 const projectileAssetKeys: Record<string, string> = {
-  "archer-tower": "projectile-arrow",
+  "archer-tower": "ts-arrow",
   "cannon-tower": "kenney-projectile",
   "magic-tower": "kenney-projectile",
 };
 
-const troopRoleTints: Record<TroopDefinition["role"], number> = {
-  blocker: 0x546a7b,
-  ranged: 0x2f5d8c,
-  burst: 0xb85c38,
+const towerVisualScales: Record<string, number> = {
+  "archer-tower": 0.24,
+  "cannon-tower": 0.28,
+  "magic-tower": 0.2,
+};
+
+const supportVisualScales: Record<RunBuildMode, number> = {
+  tower: 0.24,
+  trap: 0.42,
+  mill: 0.25,
+  barracks: 0.25,
+  wall: 0.22,
+  shrine: 0.2,
+};
+
+const enemyVisualScales: Record<string, number> = {
+  grunt: 0.27,
+  runner: 0.28,
+  tank: 0.2,
+  shield: 0.2,
+  bat: 0.25,
+  bomber: 0.3,
+  gatebreaker: 0.42,
+};
+
+const enemyAnimationKeys: Record<string, string> = {
+  "ts-red-pawn-run": "ts-red-pawn-run-anim",
+  "ts-red-warrior-run": "ts-red-warrior-run-anim",
+  "ts-red-lancer-run": "ts-red-lancer-run-anim",
+  "ts-black-warrior-run": "ts-black-warrior-run-anim",
+};
+
+const troopVisuals: Record<TroopDefinition["role"], { key: string; animation: string; scale: number }> = {
+  blocker: { key: "ts-blue-warrior-run", animation: "ts-blue-warrior-run-anim", scale: 0.24 },
+  ranged: { key: "ts-blue-archer-run", animation: "ts-blue-archer-run-anim", scale: 0.24 },
+  burst: { key: "ts-blue-monk-run", animation: "ts-blue-monk-run-anim", scale: 0.24 },
 };
 
 const groundTileSize = 64;
@@ -172,6 +207,14 @@ const spriteFacingOffset: Record<string, number> = {
   "enemy-runner": Math.PI / 2,
   "projectile-arrow": 0,
   "hero-guardian": Math.PI / 2,
+  "ts-red-pawn-run": 0,
+  "ts-red-warrior-run": 0,
+  "ts-red-lancer-run": 0,
+  "ts-black-warrior-run": 0,
+  "ts-blue-warrior-run": 0,
+  "ts-blue-archer-run": 0,
+  "ts-blue-monk-run": 0,
+  "ts-arrow": 0,
 };
 
 const rotationTurnSpeed = 0.045;
@@ -216,7 +259,6 @@ export class RunScene extends Phaser.Scene {
   private selectedHeroAbility = "Fort Shield";
   private heroCooldownMs = 18000;
   private nextHeroAbilityAt = 0;
-  private heroTint = 0x4a5759;
   private upgradeOverlay?: Phaser.GameObjects.Container;
   private audio?: AudioManager;
   private palette = {
@@ -255,12 +297,14 @@ export class RunScene extends Phaser.Scene {
     this.load.svg("coin-mill", "/assets/optimized/sprites/coin-mill.svg", { width: 64, height: 64 });
     this.load.svg("stone-wall", "/assets/optimized/sprites/stone-wall.svg", { width: 64, height: 64 });
     this.load.svg("healing-shrine", "/assets/optimized/sprites/healing-shrine.svg", { width: 64, height: 64 });
+    this.loadTinySwordsAssets();
     preloadSounds(this);
   }
 
   create() {
     useGameStore.getState().beginRun();
     this.applyLoadout();
+    this.createTinySwordsAnimations();
     this.drawMap();
     this.bindGameBridge();
     this.syncTimeScale();
@@ -303,37 +347,108 @@ export class RunScene extends Phaser.Scene {
     this.updateHud();
   }
 
+  private loadTinySwordsAssets() {
+    const { buildings, terrain, projectiles, units, fx } = tinySwordsAssets;
+
+    this.load.image("ts-building-fort", buildings.fort);
+    this.load.image("ts-building-archery", buildings.archerTower);
+    this.load.image("ts-building-tower", buildings.cannonTower);
+    this.load.image("ts-building-monastery", buildings.magicTower);
+    this.load.image("ts-building-barracks", buildings.barracks);
+    this.load.image("ts-building-mill", buildings.coinMill);
+    this.load.image("ts-building-wall", buildings.stoneWall);
+    this.load.image("ts-building-shrine", buildings.healingShrine);
+    this.load.image("ts-building-enemy-camp", buildings.enemyCamp);
+
+    this.load.image("ts-terrain-shadow", terrain.shadow);
+    this.load.image("ts-terrain-bush-1", terrain.bush1);
+    this.load.image("ts-terrain-bush-2", terrain.bush2);
+    this.load.image("ts-terrain-rock-1", terrain.rock1);
+    this.load.image("ts-terrain-rock-2", terrain.rock2);
+    this.load.image("ts-terrain-gold", terrain.goldResource);
+    this.load.image("ts-terrain-tilemap-grass", terrain.tilemapGrass);
+    this.load.image("ts-arrow", projectiles.arrow);
+
+    this.load.spritesheet("ts-red-pawn-run", units.redPawnRun, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-red-warrior-run", units.redWarriorRun, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-red-lancer-run", units.redLancerRun, { frameWidth: 320, frameHeight: 320 });
+    this.load.spritesheet("ts-black-warrior-run", units.blackWarriorRun, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-blue-warrior-run", units.blueWarriorRun, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-blue-archer-run", units.blueArcherRun, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-blue-monk-run", units.blueMonkRun, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-fx-dust", fx.dust, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("ts-fx-explosion", fx.explosion, { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet("ts-fx-fire", fx.fire, { frameWidth: 64, frameHeight: 64 });
+  }
+
+  private createTinySwordsAnimations() {
+    const make = (key: string, frameRate = 8, repeat = -1) => {
+      if (this.anims.exists(`${key}-anim`)) return;
+      this.anims.create({
+        key: `${key}-anim`,
+        frames: this.anims.generateFrameNumbers(key),
+        frameRate,
+        repeat,
+      });
+    };
+
+    [
+      "ts-red-pawn-run",
+      "ts-red-warrior-run",
+      "ts-red-lancer-run",
+      "ts-black-warrior-run",
+      "ts-blue-warrior-run",
+      "ts-blue-archer-run",
+      "ts-blue-monk-run",
+    ].forEach((key) => make(key));
+    make("ts-fx-dust", 14, 0);
+    make("ts-fx-explosion", 14, 0);
+    make("ts-fx-fire", 14, 0);
+  }
+
   private drawMap() {
     this.drawGroundTiles();
     this.drawPathTiles();
     this.layout.decor.forEach((piece) => this.drawDecor(piece));
-    this.add.image(this.layout.fort.x, this.layout.fort.y, "fort").setScale(0.78).setDepth(12);
+    this.addTinySwordsShadow(this.layout.fort.x, this.layout.fort.y + 30, 1.55, 11);
+    this.add.image(this.layout.fort.x, this.layout.fort.y, "ts-building-fort").setScale(0.42).setDepth(12);
+  }
+
+  private addTinySwordsShadow(x: number, y: number, scale: number, depth: number) {
+    return this.add.image(x, y, "ts-terrain-shadow").setScale(scale, scale * 0.58).setAlpha(0.42).setDepth(depth);
+  }
+
+  private playTinySwordsFx(key: "ts-fx-dust" | "ts-fx-explosion" | "ts-fx-fire", x: number, y: number, scale: number) {
+    const fx = this.add.sprite(x, y, key).setScale(scale).setDepth(50);
+    fx.play(`${key}-anim`);
+    fx.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => fx.destroy());
+    return fx;
   }
 
   private drawDecor(piece: MapDecor) {
     if (piece.kind === "tree") {
+      this.addTinySwordsShadow(piece.x, piece.y + 9, 0.5 * (piece.scale ?? 1), 0);
       this.add
-        .image(piece.x, piece.y, "kenney-tree")
-        .setScale(piece.scale ?? 0.64)
-        .setTint(this.palette.hud)
+        .image(piece.x, piece.y, piece.scale && piece.scale > 0.85 ? "ts-terrain-bush-1" : "ts-terrain-bush-2")
+        .setScale((piece.scale ?? 0.64) * 0.42)
         .setDepth(1);
       return;
     }
 
-    const tint = piece.tint ?? this.palette.hud;
     if (piece.kind === "rock") {
-      const scale = piece.scale ?? 1;
-      this.add.circle(piece.x, piece.y, 14 * scale, tint, 0.85).setDepth(1);
-      this.add.circle(piece.x - 4, piece.y - 3, 8 * scale, tint, 0.55).setDepth(1);
+      this.addTinySwordsShadow(piece.x, piece.y + 5, 0.36 * (piece.scale ?? 1), 0);
+      this.add
+        .image(piece.x, piece.y, Math.round(piece.x + piece.y) % 2 === 0 ? "ts-terrain-rock-1" : "ts-terrain-rock-2")
+        .setScale((piece.scale ?? 1) * 0.8)
+        .setDepth(1);
       return;
     }
 
     const scale = piece.scale ?? 1;
+    this.addTinySwordsShadow(piece.x, piece.y + 7, 0.32 * scale, 0);
     this.add
-      .rectangle(piece.x, piece.y, 12 * scale, 28 * scale, tint, 0.9)
-      .setDepth(1);
-    this.add
-      .rectangle(piece.x, piece.y - 14 * scale, 18 * scale, 8 * scale, tint, 0.75)
+      .image(piece.x, piece.y, "ts-terrain-gold")
+      .setScale(0.62 * scale)
       .setDepth(1);
   }
 
@@ -438,10 +553,10 @@ export class RunScene extends Phaser.Scene {
 
     const structs: RunUiStruct[] = [
       { mode: "trap", def: spikeTrapDefinition, sprite: "spike-trap" },
-      { mode: "mill", def: coinMillDefinition, sprite: "coin-mill" },
-      { mode: "barracks", def: barracksDefinition, sprite: "barracks" },
-      { mode: "wall", def: stoneWallDefinition, sprite: "stone-wall" },
-      { mode: "shrine", def: healingShrineDefinition, sprite: "healing-shrine" },
+      { mode: "mill", def: coinMillDefinition, sprite: "ts-building-mill" },
+      { mode: "barracks", def: barracksDefinition, sprite: "ts-building-barracks" },
+      { mode: "wall", def: stoneWallDefinition, sprite: "ts-building-wall" },
+      { mode: "shrine", def: healingShrineDefinition, sprite: "ts-building-shrine" },
     ].map(({ mode, def, sprite }) => ({
       mode: mode as RunUiStruct["mode"],
       id: def.id,
@@ -552,11 +667,12 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createHero() {
+    this.addTinySwordsShadow(this.layout.hero.x, this.layout.hero.y + 16, 0.44, 13);
     this.add
-      .image(this.layout.hero.x, this.layout.hero.y, "hero-guardian")
-      .setScale(0.44)
-      .setTint(this.heroTint)
-      .setDepth(14);
+      .sprite(this.layout.hero.x, this.layout.hero.y, "ts-blue-warrior-run")
+      .setScale(0.27)
+      .setDepth(14)
+      .play("ts-blue-warrior-run-anim");
   }
 
   private tryBuildOrMerge(x: number, y: number) {
@@ -655,10 +771,11 @@ export class RunScene extends Phaser.Scene {
         existingTower.tier += 1;
         existingTower.damage += 8 * this.towerDamageMultiplier;
         existingTower.range += 4;
-        existingTower.body.setScale(0.58 + existingTower.tier * 0.05);
+        existingTower.body.setScale(existingTower.baseScale + existingTower.tier * 0.025);
         existingTower.badgeBg.setPosition(existingTower.body.x + 19, existingTower.body.y - 18);
         existingTower.badge.setPosition(existingTower.badgeBg.x, existingTower.badgeBg.y);
         existingTower.badge.setText(String(existingTower.tier));
+        this.playTinySwordsFx("ts-fx-dust", existingTower.body.x, existingTower.body.y + 14, 0.42);
         this.showToast(`${existingTower.tier === 5 ? "Max" : "Tier"} ${existingTower.tier} tower`);
       } else if (existingTower.tier >= 5) {
         this.showToast("Tower is already max tier");
@@ -681,7 +798,9 @@ export class RunScene extends Phaser.Scene {
 
     this.coins -= definition.baseCost;
     this.audio?.play("build-place");
-    const body = this.add.image(slot.x, slot.y, towerAssetKeys[definition.id]).setScale(0.58).setDepth(8);
+    const baseScale = towerVisualScales[definition.id] ?? 0.24;
+    this.addTinySwordsShadow(slot.x, slot.y + 18, 0.62, 7);
+    const body = this.add.image(slot.x, slot.y, towerAssetKeys[definition.id]).setScale(baseScale).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
       color: "#ffffff",
@@ -696,11 +815,13 @@ export class RunScene extends Phaser.Scene {
       badge,
       towerId: definition.id,
       tier: 1,
+      baseScale,
       damage: definition.stats.damage * this.towerDamageMultiplier,
       range: definition.stats.range,
       fireRateMs: Math.round(definition.stats.fireRateMs * this.fireRateMultiplier),
       lastShotAt: 0,
     });
+    this.playTinySwordsFx("ts-fx-dust", slot.x, slot.y + 16, 0.42);
     this.showToast(`${definition.name} built`);
   }
 
@@ -797,10 +918,11 @@ export class RunScene extends Phaser.Scene {
         this.coins -= padTierUpgradeCost;
         this.audio?.play("build-upgrade");
         existingMill.tier += 1;
-        existingMill.body.setScale(0.48 + existingMill.tier * 0.05);
+        existingMill.body.setScale(supportVisualScales.mill + existingMill.tier * 0.02);
         existingMill.badgeBg.setPosition(existingMill.body.x + 19, existingMill.body.y - 18);
         existingMill.badge.setPosition(existingMill.badgeBg.x, existingMill.badgeBg.y);
         existingMill.badge.setText(String(existingMill.tier));
+        this.playTinySwordsFx("ts-fx-dust", existingMill.body.x, existingMill.body.y + 14, 0.38);
         this.showToast(`${existingMill.tier === maxTier ? "Max" : "Tier"} ${existingMill.tier} coin mill`);
       } else if (existingMill.tier >= maxTier) {
         this.showToast("Coin mill already max tier");
@@ -822,7 +944,9 @@ export class RunScene extends Phaser.Scene {
 
     this.coins -= coinMillDefinition.baseCost;
     this.audio?.play("build-place");
-    const body = this.add.image(slot.x, slot.y, "coin-mill").setScale(0.48).setDepth(8);
+    this.addTinySwordsShadow(slot.x, slot.y + 16, 0.52, 7);
+    const body = this.add.image(slot.x, slot.y, "ts-building-mill").setScale(supportVisualScales.mill).setDepth(8);
+    this.add.image(slot.x + 16, slot.y + 16, "ts-terrain-gold").setScale(0.48).setDepth(9);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
       color: "#ffffff",
@@ -832,6 +956,7 @@ export class RunScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(10);
 
     this.coinMills.push({ body, badgeBg, badge, tier: 1 });
+    this.playTinySwordsFx("ts-fx-dust", slot.x, slot.y + 14, 0.38);
     this.showToast(`${coinMillDefinition.name} built`);
   }
 
@@ -888,10 +1013,11 @@ export class RunScene extends Phaser.Scene {
           1400,
           Math.round(barracksDefinition.stats.spawnRateMs / (1 + (existingBarracks.tier - 1) * 0.22)),
         );
-        existingBarracks.body.setScale(0.5 + existingBarracks.tier * 0.05);
+        existingBarracks.body.setScale(supportVisualScales.barracks + existingBarracks.tier * 0.02);
         existingBarracks.badgeBg.setPosition(existingBarracks.body.x + 19, existingBarracks.body.y - 18);
         existingBarracks.badge.setPosition(existingBarracks.badgeBg.x, existingBarracks.badgeBg.y);
         existingBarracks.badge.setText(String(existingBarracks.tier));
+        this.playTinySwordsFx("ts-fx-dust", existingBarracks.body.x, existingBarracks.body.y + 14, 0.38);
         this.showToast(`${existingBarracks.tier === maxTier ? "Max" : "Tier"} ${existingBarracks.tier} barracks`);
       } else if (existingBarracks.tier >= maxTier) {
         this.showToast("Barracks already max tier");
@@ -913,7 +1039,8 @@ export class RunScene extends Phaser.Scene {
 
     this.coins -= barracksDefinition.baseCost;
     this.audio?.play("build-place");
-    const body = this.add.image(slot.x, slot.y, "barracks").setScale(0.5).setDepth(8);
+    this.addTinySwordsShadow(slot.x, slot.y + 16, 0.58, 7);
+    const body = this.add.image(slot.x, slot.y, "ts-building-barracks").setScale(supportVisualScales.barracks).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
       color: "#ffffff",
@@ -930,6 +1057,7 @@ export class RunScene extends Phaser.Scene {
       spawnRateMs: barracksDefinition.stats.spawnRateMs,
       lastSpawnAt: 0,
     });
+    this.playTinySwordsFx("ts-fx-dust", slot.x, slot.y + 14, 0.38);
     this.showToast(`${barracksDefinition.name} ready`);
   }
 
@@ -953,11 +1081,12 @@ export class RunScene extends Phaser.Scene {
         this.coins -= padTierUpgradeCost;
         this.audio?.play("build-upgrade");
         existingWall.tier += 1;
-        existingWall.body.setScale(0.46 + existingWall.tier * 0.05);
+        existingWall.body.setScale(supportVisualScales.wall + existingWall.tier * 0.018);
         existingWall.badgeBg.setPosition(existingWall.body.x + 19, existingWall.body.y - 18);
         existingWall.badge.setPosition(existingWall.badgeBg.x, existingWall.badgeBg.y);
         existingWall.badge.setText(String(existingWall.tier));
         this.refreshFortShield();
+        this.playTinySwordsFx("ts-fx-dust", existingWall.body.x, existingWall.body.y + 14, 0.38);
         this.showToast(`${existingWall.tier === maxTier ? "Max" : "Tier"} ${existingWall.tier} wall`);
       } else if (existingWall.tier >= maxTier) {
         this.showToast("Wall already max tier");
@@ -979,7 +1108,8 @@ export class RunScene extends Phaser.Scene {
 
     this.coins -= stoneWallDefinition.baseCost;
     this.audio?.play("build-place");
-    const body = this.add.image(slot.x, slot.y, "stone-wall").setScale(0.46).setDepth(8);
+    this.addTinySwordsShadow(slot.x, slot.y + 15, 0.48, 7);
+    const body = this.add.image(slot.x, slot.y, "ts-building-wall").setScale(supportVisualScales.wall).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
       color: "#ffffff",
@@ -990,6 +1120,7 @@ export class RunScene extends Phaser.Scene {
 
     this.stoneWalls.push({ body, badgeBg, badge, tier: 1 });
     this.refreshFortShield();
+    this.playTinySwordsFx("ts-fx-dust", slot.x, slot.y + 14, 0.38);
     this.showToast(`${stoneWallDefinition.name} built`);
   }
 
@@ -1015,10 +1146,11 @@ export class RunScene extends Phaser.Scene {
         this.coins -= padTierUpgradeCost;
         this.audio?.play("build-upgrade");
         existingShrine.tier += 1;
-        existingShrine.body.setScale(0.46 + existingShrine.tier * 0.05);
+        existingShrine.body.setScale(supportVisualScales.shrine + existingShrine.tier * 0.018);
         existingShrine.badgeBg.setPosition(existingShrine.body.x + 19, existingShrine.body.y - 18);
         existingShrine.badge.setPosition(existingShrine.badgeBg.x, existingShrine.badgeBg.y);
         existingShrine.badge.setText(String(existingShrine.tier));
+        this.playTinySwordsFx("ts-fx-dust", existingShrine.body.x, existingShrine.body.y + 14, 0.38);
         this.showToast(`${existingShrine.tier === maxTier ? "Max" : "Tier"} ${existingShrine.tier} shrine`);
       } else if (existingShrine.tier >= maxTier) {
         this.showToast("Shrine already max tier");
@@ -1040,7 +1172,8 @@ export class RunScene extends Phaser.Scene {
 
     this.coins -= healingShrineDefinition.baseCost;
     this.audio?.play("build-place");
-    const body = this.add.image(slot.x, slot.y, "healing-shrine").setScale(0.46).setDepth(8);
+    this.addTinySwordsShadow(slot.x, slot.y + 15, 0.46, 7);
+    const body = this.add.image(slot.x, slot.y, "ts-building-shrine").setScale(supportVisualScales.shrine).setDepth(8);
     const badgeBg = this.add.circle(slot.x + 19, slot.y - 18, 10, 0x17202b).setDepth(9);
     const badge = this.add.text(badgeBg.x, badgeBg.y, "1", {
       color: "#ffffff",
@@ -1050,6 +1183,7 @@ export class RunScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(10);
 
     this.healingShrines.push({ body, badgeBg, badge, tier: 1 });
+    this.playTinySwordsFx("ts-fx-dust", slot.x, slot.y + 14, 0.38);
     this.showToast(`${healingShrineDefinition.name} built`);
   }
 
@@ -1128,12 +1262,12 @@ export class RunScene extends Phaser.Scene {
     const troopDefinition = this.getTroopDefinitionForTier(barracksBuilding.tier);
     const spawnX = barracksBuilding.body.x + Phaser.Math.Between(-10, 10);
     const spawnY = barracksBuilding.body.y + Phaser.Math.Between(-8, 8);
-    const troopTint = troopRoleTints[troopDefinition.role];
+    const visual = troopVisuals[troopDefinition.role] ?? troopVisuals.blocker;
     const body = this.add
-      .image(spawnX, spawnY, "hero-guardian")
-      .setScale(0.28)
-      .setTint(troopTint)
+      .sprite(spawnX, spawnY, visual.key)
+      .setScale(visual.scale)
       .setDepth(13);
+    body.play(visual.animation);
     const hpBar = this.add
       .rectangle(body.x, body.y - 18, 20, 3, 0x216869)
       .setOrigin(0.5)
@@ -1153,7 +1287,7 @@ export class RunScene extends Phaser.Scene {
       lastAttackAt: 0,
       lastHurtAt: 0,
       role: troopDefinition.role,
-      tint: troopTint,
+      tint: 0xffffff,
     });
   }
 
@@ -1169,7 +1303,7 @@ export class RunScene extends Phaser.Scene {
       if (target) {
         const distance = Phaser.Math.Distance.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
         const angle = Phaser.Math.Angle.Between(troop.body.x, troop.body.y, target.body.x, target.body.y);
-        this.rotateSpriteToward(troop.body, angle, spriteFacingOffset["hero-guardian"], delta);
+        this.rotateSpriteToward(troop.body, angle, spriteFacingOffset[troop.body.texture.key] ?? 0, delta);
 
         if (distance > troop.attackRange) {
           troop.body.x += Math.cos(angle) * troop.speed * delta;
@@ -1197,7 +1331,7 @@ export class RunScene extends Phaser.Scene {
           troop.hp -= 10;
           troop.body.setTintFill(0xff6b6b);
           this.time.delayedCall(80, () => {
-            if (troop.body.active) troop.body.setTint(troop.tint);
+            if (troop.body.active) troop.body.clearTint();
           });
           if (troop.role === "blocker" && contactDistance < 18) {
             enemy.body.x -= (enemy.body.x - troop.body.x) * 0.04;
@@ -1241,6 +1375,7 @@ export class RunScene extends Phaser.Scene {
       this.damageEnemy(target, trap.damage, "trap");
       this.audio?.play("trap-trigger");
       this.pulseTrap(trap);
+      this.playTinySwordsFx("ts-fx-dust", target.body.x, target.body.y + 6, 0.42);
     });
   }
 
@@ -1337,10 +1472,13 @@ export class RunScene extends Phaser.Scene {
     const assetKey = enemyAssetKeys[definition.id] ?? "kenney-enemy-grunt";
     const isBoss = definition.archetype === "boss";
     const usesSvg = assetKey === "enemy-runner" || assetKey === "enemy-grunt";
+    const baseScale = enemyVisualScales[definition.id] ?? (isBoss ? 0.42 : 0.28);
     const body = this.add
-      .image(laneWaypoints[0].x, laneWaypoints[0].y, assetKey)
-      .setScale(isBoss ? 0.58 : 0.46)
+      .sprite(laneWaypoints[0].x, laneWaypoints[0].y, assetKey)
+      .setScale(baseScale)
       .setDepth(16);
+    const animationKey = enemyAnimationKeys[assetKey];
+    if (animationKey) body.play(animationKey);
 
     if (usesSvg) {
       body.setTint(definition.color);
@@ -1367,6 +1505,7 @@ export class RunScene extends Phaser.Scene {
       damageToFort: Math.ceil(definition.damageToFort * 0.55),
       tint: usesSvg ? definition.color : 0xffffff,
       isBoss,
+      baseScale,
       facingOffset: spriteFacingOffset[assetKey] ?? 0,
     });
   }
@@ -1382,6 +1521,7 @@ export class RunScene extends Phaser.Scene {
           this.audio?.play("enemy-bomber-explode");
           this.applyFortDamage(enemy.damageToFort);
           this.applyFortDamage(Math.ceil(enemy.damageToFort * 0.55));
+          this.playTinySwordsFx("ts-fx-explosion", this.layout.fortFx.x, this.layout.fortFx.y, 0.54);
           this.flashCircle(this.layout.fortFx.x, this.layout.fortFx.y, 72, 0xb5442f);
         } else {
           this.audio?.play("enemy-leak");
@@ -1409,7 +1549,7 @@ export class RunScene extends Phaser.Scene {
       enemy.body.x += Math.cos(angle) * enemy.speed * delta;
       enemy.body.y += Math.sin(angle) * enemy.speed * delta;
       this.rotateSpriteToward(enemy.body, angle, enemy.facingOffset, delta);
-      enemy.body.scale = (enemy.isBoss ? 0.82 : 0.9) + (enemy.hp / enemy.maxHp) * 0.08;
+      enemy.body.setScale(enemy.baseScale * (0.96 + (enemy.hp / enemy.maxHp) * 0.08));
       enemy.hpBar.setPosition(enemy.body.x, enemy.body.y - 30);
       enemy.hpBar.width = Math.max(3, 28 * (enemy.hp / enemy.maxHp));
       return enemy.hp > 0 && this.fortHp > 0;
@@ -1457,7 +1597,7 @@ export class RunScene extends Phaser.Scene {
     tower.lastShotAt = time;
     this.audio?.playTowerFire(tower.towerId);
     const projectileKey = projectileAssetKeys[tower.towerId] ?? "kenney-projectile";
-    const projectileScale = projectileKey === "projectile-arrow" ? 0.62 : 0.55;
+    const projectileScale = projectileKey === "ts-arrow" ? 0.36 : projectileKey === "projectile-arrow" ? 0.62 : 0.55;
     const projectile = this.add.image(tower.body.x, tower.body.y, projectileKey).setScale(projectileScale).setDepth(18);
     const shotAngle = Phaser.Math.Angle.Between(tower.body.x, tower.body.y, target.body.x, target.body.y);
     projectile.rotation = shotAngle + (spriteFacingOffset[projectileKey] ?? 0);
@@ -1492,6 +1632,7 @@ export class RunScene extends Phaser.Scene {
       }
     });
 
+    this.playTinySwordsFx("ts-fx-explosion", hitX, hitY, 0.38);
     this.flashCircle(hitX, hitY, splashRadius, 0x81523f);
   }
 
@@ -1517,6 +1658,8 @@ export class RunScene extends Phaser.Scene {
 
         if (projectile.towerId === "cannon-tower") {
           this.applyCannonSplash(projectile.target, projectile.damage, hitX, hitY);
+        } else if (source === "magic") {
+          this.playTinySwordsFx("ts-fx-fire", hitX, hitY, 0.42);
         }
 
         projectile.body.destroy();
@@ -1668,6 +1811,7 @@ export class RunScene extends Phaser.Scene {
 
     if (this.selectedHeroRole === "guardian") {
       this.fortHp = Math.min(this.maxFortHp, this.fortHp + 55);
+      this.playTinySwordsFx("ts-fx-dust", this.layout.fortFx.x, this.layout.fortFx.y, 0.58);
       this.flashCircle(this.layout.fortFx.x, this.layout.fortFx.y, 92, 0xf2c14e);
       this.showToast("Fort shield restored HP");
       return;
@@ -1691,6 +1835,7 @@ export class RunScene extends Phaser.Scene {
 
     this.enemies.forEach((enemy) => this.damageEnemy(enemy, 46, "hero"));
     const { x, y } = this.layout.mageAbilityCenter;
+    this.playTinySwordsFx("ts-fx-fire", x, y, 0.72);
     this.flashCircle(x, y, 170, 0xb85c38);
     this.showToast("Meteor sigil burned the lane");
   }
@@ -1719,6 +1864,7 @@ export class RunScene extends Phaser.Scene {
     if (enemy.hp <= 0) {
       this.audio?.play("enemy-kill", { rate: 0.92 + Math.random() * 0.16 });
       this.coins += enemy.reward;
+      this.playTinySwordsFx("ts-fx-dust", enemy.body.x, enemy.body.y + 6, enemy.isBoss ? 0.64 : 0.42);
       enemy.body.destroy();
       enemy.hpBar.destroy();
     }
@@ -1917,7 +2063,6 @@ export class RunScene extends Phaser.Scene {
     this.selectedHeroRole = selectedHero.role;
     this.selectedHeroAbility = selectedHero.ability;
     this.heroCooldownMs = selectedHero.cooldownSeconds * 1000;
-    this.heroTint = selectedHero.color;
     this.palette = {
       ground: parseHexColor(selectedMap.palette.ground, 0x83a96d),
       path: parseHexColor(selectedMap.palette.path, 0xd9c59f),
@@ -1958,7 +2103,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private rotateSpriteToward(
-    sprite: Phaser.GameObjects.Image,
+    sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite,
     aimAngle: number,
     facingOffset: number,
     delta: number,

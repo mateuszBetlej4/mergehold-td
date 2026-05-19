@@ -34,6 +34,14 @@ License URL: https://creativecommons.org/publicdomain/zero/1.0/
 Runtime path: `public/assets/source/kenney/tower-defense-top-down`, `public/assets/optimized/sprites/kenney-*.png`
 Notes: Original pack by Kenney.nl. Runtime selection uses towers, enemy units, grass/path-dot tiles, projectiles, and trees. Path is tiled `kenney-path-dot` (no vector overlay). Bat and bomber use project SVG silhouettes tinted per enemy data; archer shots use `projectile-arrow.svg`. Full wiring and rotation table: `docs/GRAPHICS.md`.
 
+Asset or pack: Tiny Swords (Free Pack)
+Author: Pixel Frog
+Source URL: https://pixelfrog-assets.itch.io/tiny-swords
+License: Itch.io asset terms; personal/commercial project use stated on source page, redistribution/repackaging prohibited.
+License URL: https://pixelfrog-assets.itch.io/tiny-swords
+Runtime path: `public/assets/optimized/tiny-swords`
+Notes: Curated runtime subset for the visual redesign branch only. Raw source folder is intentionally local-only and ignored; verify current source-page terms before public release.
+
 Asset or pack: Kenney Music Loops (German Virtue, Mission Plausible, Game Over)
 Author: Kenney
 Source URL: https://kenney.nl/assets/music-loops
